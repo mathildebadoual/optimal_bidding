@@ -15,7 +15,7 @@ r_max = 4
 r_min = 0
 MAX_TIME = 200
 
-y_init = np.array([4, 0, 0, 0])
+y_init = np.array([0, 0, 0, 0])
 time = np.linspace(0, MAX_TIME, MAX_TIME+1)
 d = np.array([random.uniform(0, 0.5) for t in time])
 y0_record = []
@@ -158,10 +158,13 @@ message = on_off.run_sim(y_init)
 print(message)
 
 plt.figure(figsize=(15, 8))
+plt.title('Simulation of the steam boiler')
+plt.xlabel('time')
 plt.plot(time, y0_record, label='w')
 plt.plot(time, y1_record, label='r')
 plt.plot(time, u1_record, label='u1')
 plt.plot(time, u2_record, label='u2')
 plt.legend()
 plt.grid()
-plt.show()
+plt.savefig('pbl_3.png')
+
