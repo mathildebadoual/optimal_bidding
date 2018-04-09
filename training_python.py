@@ -58,11 +58,12 @@ def create_partition(x, low, high):
     return pivot
 
 
-
-
-
 def bubble_sort(x):
-    pass
+    for i in range(len(x)):
+        for j in range(0, len(x)-1-i):
+            if x[j] > x[j+1]:
+                x[j], x[j+1] = x[j+1], x[j]
+    return x
 
 
 if __name__=='__main__':
@@ -77,3 +78,9 @@ if __name__=='__main__':
     quicksort(y, 0, len(x)-1)
     end_time = time.time() - start_time
     print('sorted list with quicksort: %s in : %s s' % (y, end_time))
+
+    z = [3, 5, 7, 1, 8, 2, 8, 5, 8, 1]
+    start_time = time.time()
+    z = bubble_sort(z)
+    end_time = time.time() - start_time
+    print('sorted list with bubble sort: %s in : %s s' % (z, end_time))
