@@ -18,7 +18,7 @@ class MarketModel():
 
 class Generator(self):
     def __init__(self):
-        pass
+
 
 
 class
