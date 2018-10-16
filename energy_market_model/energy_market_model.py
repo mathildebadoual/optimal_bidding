@@ -1,12 +1,10 @@
 import numpy as np
-import cvxpy as cvx
 
 
 # This class gather the two elements of the environment:
 # the battery and the market
 class Env():
-    def __init__(self):
-        num_other_agents = 10
+    def __init__(self, num_other_agents):
         self.market_model = MarketModel(num_other_agents)
         self.storage_system = StorageSystem()
 
@@ -26,56 +24,44 @@ class Env():
 class MarketModel():
     def __init__(self, num_other_agents, time_init=0, delta_time=60):
         self.num_other_agents = num_other_agents
-        self.opt_problem = self.build_problem()
         self.time = time_init
         self.delta_time = delta_time
-
-    def build_problem(self):
-        # Parameters and Variables
-        self.cost_generators = cvx.Parameter((self.num_agents+1,))
-        self.bids_generators = cvx.Parameter((self.num_agents+1,))
-        self.demand = cvx.Parameter()
-        self.bids_cleared = cvx.Variable((self.num_agents+1,), boolean=True)
-
-        # Constraints and Objective function
-        constraint = [np.sum(self.bids_generators) == self.demand]
-        objective = cvx.Minimize(
-            cvx.kron(self.bids_cleared, self.bids_generators).T *
-            self.cost_generators)
-        problem = cvx.Problem(objective, constraint)
-
-        return problem
 
     def reset(self):
         self.time = 0
 
     def step(self, action):
-        # action = [quantity, cost]
+        # action = (quantity, cost) is type tuple
 
         # assign values to the cvxpy parameters
-        self.cost_generators.value[1:] = self.cost_generators_base
-        self.cost_generators.value[0] = action[1]
-        self.bids_generators.value[1:] = self.get_bids_other_generators(
+        bids_other = self.get_bids_other_generators(
             self.time)
-        self.bids_generators.value[0] = action[0]
-        self.demand.value = self.get_demand(self.time)
+        bids =  [action] + bids_other
+        demand = self.get_demand(self.time)
 
         # solve problem
-        self.problem.solve()
+        bids.sort(key=lambda tup: tup[1])
+        quantity_cleared = 0
+        cleared_bids = bids.copy()
+        for i, bid in enumerate(bids):
+            if quantity_cleared + bid[0] <= demand:
+                quantity_cleared += bid[0]
+            elif quantity_cleared < demand:
+                cleared_bids[i] = (demand - quantity_cleared, bid[1])
+            else:
+                cleared_bids[i] = (0, bid[1])
 
         # step in time
         self.time += self.delta_time
 
         # send result to battery
-        self.bids_cleared.value[0]
-
-        # return observation
+        return cleared_bids
 
     def get_bids_other_generators(self, time):
-        pass
+        return [(30, 2), (24, 3), (50, 2.4), (10, 2), (4, 1.9)]
 
-    def get_delta_time(self, time):
-        pass
+    def get_demand(self, time):
+        return 60
 
 
 class StorageSystem():
@@ -95,7 +81,7 @@ class StorageSystem():
 
     def step(self, power):
         energy_to_add = self.efficiency_ratio * power
-        if self.min_power <= energy_to_add <= self.max_power:
+        if self.min_power <= abs(energy_to_add) <= self.max_power:
             next_soe = self.soe + energy_to_add
             if self.min_soe <= next_soe <= self.max_soe:
                 self.soe = next_soe
