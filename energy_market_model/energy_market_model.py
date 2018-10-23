@@ -4,6 +4,9 @@ import cvxpy as cvx
 # This class gather the two elements of the environment:
 # the battery and the market
 class Env():
+    action_space = np.array((100,), dtype=int)
+    observation_space = np.array((3,), dtype=int)
+
     def __init__(self, num_other_agents):
         self.market_model = MarketModel(num_other_agents)
         self.storage_system = StorageSystem()
@@ -11,14 +14,45 @@ class Env():
     def reset(self):
         self.market_model.reset()
         self.storage_system.reset()
+        return np.array((0, 0, 0))
 
-    def step(self, action):
+    def step(self, discrete_action):
+        action = self._discrete_to_continuous_action(discrete_action)
         quantity_cleared, price_cleared = self.market_model.step(action)
-        actual_soe = self.storage_system(quantity_cleared)
+        actual_soe, penalty = self.storage_system.step(quantity_cleared)
 
-        # define the state
-        state = np.array(quantity_cleared, price_cleared, actual_soe)
-        return state
+        # define state and reward
+        state = np.array((quantity_cleared, price_cleared, actual_soe))
+        reward = quantity_cleared * price_cleared - penalty
+        done = False
+        info = None
+
+        return state, reward, done, info
+
+    def render(self):
+        return
+
+
+    def close(self):
+        return
+
+    def seed(self, seed=None):
+        return
+
+    @property
+    def unwrapped(self):
+        return self
+
+    def _discrete_to_continuous_action(self, discrete_action):
+        """
+        :param discrete_action: int
+        :return: (float, float)
+        """
+        i = discrete_action // 10
+        j = discrete_action % 10
+
+        quantity, cost = i * 10, j
+        return quantity, cost
 
 
 class MarketModel():
@@ -79,6 +113,9 @@ class MarketModel():
         # send result to battery
         return self.p.value, self.cleared.value
 
+    def get_demand(self, time):
+        return 60
+
     def get_bids_actors(self, action, time):
         p_min = np.array([10, 20, -47.8, 7.6, 11.2, 0, 0, 29.5, -9.0, -3.5, -6.1, -13.8, -14.9, action[0]])
         p_max = np.array([10000, 80, -47.8, 7.6, 11.2, 0, 0, 29.5, -9.0, -3.5, -6.1, -13.8, -14.9, action[0]])
@@ -101,9 +138,12 @@ class StorageSystem():
         self.soe = soe_init
 
     def step(self, power):
+        penalty = 100
         energy_to_add = self.efficiency_ratio * power
         if self.min_power <= abs(energy_to_add) <= self.max_power:
             next_soe = self.soe + energy_to_add
             if self.min_soe <= next_soe <= self.max_soe:
                 self.soe = next_soe
-        return self.soe
+                penalty = 0
+
+        return self.soe, penalty
