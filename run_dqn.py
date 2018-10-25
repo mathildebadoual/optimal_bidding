@@ -1,8 +1,8 @@
 import tensorflow as tf
 
-import agent.dqn as dqn
-from agent.dqn_utils import *
-from energy_market_model.energy_market_model import Env
+import agents.dqn as dqn
+from agents.dqn_utils import *
+from models.energy_market_model import Env
 
 
 def model(input, num_actions, scope, reuse=False):
@@ -11,7 +11,6 @@ def model(input, num_actions, scope, reuse=False):
         with tf.variable_scope("action_value"):
             out = tf.contrib.layers.fully_connected(out, num_outputs=32,         activation_fn=tf.nn.relu)
             out = tf.contrib.layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
-
         return out
 
 
@@ -84,7 +83,7 @@ def get_session():
 
 
 def main():
-    env = Env(num_other_agents=1)
+    env = Env(num_agents=1)
     session = get_session()
     learn(env, session, num_timesteps=2e8)
 

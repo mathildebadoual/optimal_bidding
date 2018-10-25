@@ -7,8 +7,8 @@ class Env():
     action_space = np.array((100,), dtype=int)
     observation_space = np.array((3,), dtype=int)
 
-    def __init__(self, num_other_agents):
-        self.market_model = MarketModel(num_other_agents)
+    def __init__(self, num_agents):
+        self.market_model = MarketModel(num_agents)
         self.storage_system = StorageSystem()
 
     def reset(self):
@@ -31,7 +31,6 @@ class Env():
 
     def render(self):
         return
-
 
     def close(self):
         return
@@ -56,41 +55,28 @@ class Env():
 
 
 class MarketModel():
-    def __init__(self, num_other_agents, grid_parameters, index_storage ,time_init=0, delta_time=60):
-        self.num_other_agents = num_other_agents
+    def __init__(self, num_agents, time_init=0, delta_time=60):
+        self.num_agents = num_agents
         self.time = time_init
         self.delta_time = delta_time
-        self.grid_parameters = grid_parameters
-        self.shape_grid = grid_parameters['h'].shape
         self.opt_problem = self.build_opt_problem()
-        self.index_storage = index_storage
 
     def build_opt_problem(self):
         # build parameters
-        theta_max = self.grid_parameters['theta_max']
-        theta_min = self.grid_parameters['theta_max']
-        h = self.grid_parameters['h']
-        self.p_max = cvx.Parameter(self.shape_grid[0])
-        self.p_min = cvx.Parameter(self.shape_grid[0])
-        self.cost = cvx.Parameter(self.num_other_agents + 1)
+        self.p_max = cvx.Parameter(self.num_agents)
+        self.p_min = cvx.Parameter(self.num_agents)
+        self.cost = cvx.Parameter(self.num_agents)
+        self.demand = cvx.Parameter()
 
         # build variables
-        self.p = cvx.Variable(self.num_other_agents + 1)
-        theta = cvx.Variable(self.shape_grid[0])
-        self.cleared = cvx.Variable(self.num_other_agents + 1, boolean=True)
+        self.p = cvx.Variable(self.num_agents)
+        self.cleared = cvx.Variable(self.num_agents, boolean=True)
 
         # build constraints
-        agents_in_grid = self.grid_parameters['agents_in_grid']
-        grid_connexion = self.grid_parameters['grid_connexion']
-        constraint = []
-        for i in range(self.shape_grid[0]):
-            constraint += [agents_in_grid[i,:] * self.p == grid_connexion[i,:] * ((theta[i] - theta) * h[i,:]).T]
-            constraint += [theta[i] <= theta_max[i]] + [theta_min[i] <= theta[i]]
-
-        for k in range(self.num_other_agents + 1):
-            constraint += [self.p[k] - self.p_max[k] * self.cleared[k] <= 0] + [self.p_min[k] * self.cleared[k] - self.p[k] <= 0]
-
-        #constraint += [self.cleared[2] == 1]
+        constraint = [np.ones(self.num_agents).T * self.p == self.demand]
+        for i in range(self.num_agents):
+            constraint += [self.p[i] <= self.cleared[i] * self.p_max[i]]
+            constraint += [self.cleared[i] * self.p_min[i] <= self.p[i]]
 
         # build the objective
         objective = cvx.Minimize(self.p.T * self.cost)
@@ -111,7 +97,7 @@ class MarketModel():
         self.time += self.delta_time
 
         # send result to battery
-        return self.p.value, self.cleared.value
+        return self.p.value[-1], self.cleared.value
 
     def get_demand(self, time):
         return 60
@@ -121,6 +107,7 @@ class MarketModel():
         p_max = np.array([10000, 80, -47.8, 7.6, 11.2, 0, 0, 29.5, -9.0, -3.5, -6.1, -13.8, -14.9, action[0]])
         cost = np.array([2.450, 3.510, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, action[1]])
         return p_min, p_max, cost
+
 
 class StorageSystem():
     def __init__(self):

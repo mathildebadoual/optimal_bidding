@@ -9,7 +9,7 @@ import random
 import tensorflow                as tf
 import tensorflow.contrib.layers as layers
 from collections import namedtuple
-from agent.dqn_utils import *
+from agents.dqn_utils import *
 
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
