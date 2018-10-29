@@ -1,7 +1,9 @@
 import unittest
-from energy_market_model.energy_market_model import Env, MarketModel, StorageSystem
+from models.energy_market_model import Env, MarketModel, StorageSystem
 import random
 import numpy as np
+import datetime
+
 
 """ Energy Market Model Tests """
 
@@ -14,73 +16,30 @@ class TestEnv(unittest.TestCase):
         pass
 
 
-class TestMarkeTModel(unittest.TestCase):
+class TestMarketModel(unittest.TestCase):
     def setUp(self):
-        self.num_other_agents = 13
-        self.grid_parameters = {
-                'grid_connexion': np.array([
-                        [0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
-                'theta_max': 1.05 * np.ones(14),
-                'theta_min': 0.95 * np.ones(14),
-                'agents_in_grid': np.array([
-                    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]]),
-                'h': np.array([
-                        [0, 0.02640, 0, 0, 0.02190, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0.01870, 0.02460, 0.01700, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0.01730, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0.00640, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
-                }
-        self.index_storage = 13
-        self.market_model = MarketModel(self.num_other_agents, self.grid_parameters, self.index_storage)
+        self.num_agents = 4
+        start_date = datetime.datetime(2018, 10, 24, 7, 25)
+        self.market_model = MarketModel(self.num_agents, start_date)
 
     def test_init(self):
         pass
 
     def test_step(self):
-        action = [10, 1.2]
+        action = [10000, 2]
         p, cleared = self.market_model.step(action)
         print(p, cleared)
-        self.assertEqual(len(cleared), self.num_other_agents)
+        self.assertEqual(len(cleared), self.num_agents)
 
     def test_reset(self):
-        self.market_model.reset()
-        self.assertEqual(self.market_model.time, 0)
+        start_date = datetime.datetime(2018, 10, 24, 7, 00)
+        self.market_model.reset(start_date)
+        self.assertEqual(self.market_model.date, start_date)
+
+    def test_get_demand(self):
+        date = self.market_model.date
+        demand = self.market_model.get_demand(date)
+        self.assertIsInstance(demand, float)
 
 
 class TestStorageSystem(unittest.TestCase):
@@ -97,17 +56,17 @@ class TestStorageSystem(unittest.TestCase):
     def test_step(self):
         power = random.randint(self.storage_system.min_power,
                                self.storage_system.max_power)
-        actual_soe = self.storage_system.step(power)
+        actual_soe, penalty = self.storage_system.step(power)
         self.assertEqual(actual_soe, power * self.storage_system.efficiency_ratio)
 
         # When it reachs the power limit
         self.storage_system.reset()
         power = self.storage_system.max_power + 2
-        actual_soe = self.storage_system.step(power * self.storage_system.efficiency_ratio)
+        actual_soe, penalty = self.storage_system.step(power * self.storage_system.efficiency_ratio)
         self.assertEqual(actual_soe, 0)
 
         # When it reachs the soe limit
         self.storage_system.reset()
         power = self.storage_system.min_soe - 5
-        actual_soe = self.storage_system.step(power)
+        actual_soe, penalty = self.storage_system.step(power)
         self.assertEqual(actual_soe, 0)

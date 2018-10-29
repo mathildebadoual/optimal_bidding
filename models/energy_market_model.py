@@ -1,5 +1,9 @@
 import numpy as np
 import cvxpy as cvx
+from pyiso import client_factory
+import datetime
+import matplotlib.pyplot as plt
+import pandas as pd
 
 # This class gather the two elements of the environment:
 # the battery and the market
@@ -7,12 +11,12 @@ class Env():
     action_space = np.array((100,), dtype=int)
     observation_space = np.array((3,), dtype=int)
 
-    def __init__(self, num_agents):
-        self.market_model = MarketModel(num_agents)
+    def __init__(self, num_agents, start_date):
+        self.market_model = MarketModel(num_agents, start_date)
         self.storage_system = StorageSystem()
 
-    def reset(self):
-        self.market_model.reset()
+    def reset(self, start_date):
+        self.market_model.reset(start_date)
         self.storage_system.reset()
         return np.array((0, 0, 0))
 
@@ -53,13 +57,13 @@ class Env():
         quantity, cost = i * 10, j
         return quantity, cost
 
-
 class MarketModel():
-    def __init__(self, num_agents, time_init=0, delta_time=60):
+    def __init__(self, num_agents, start_date, delta_time=datetime.timedelta(hours=1)):
         self.num_agents = num_agents
-        self.time = time_init
+        self.date = start_date
         self.delta_time = delta_time
         self.opt_problem = self.build_opt_problem()
+        self.caiso = client_factory('CAISO')
 
     def build_opt_problem(self):
         # build parameters
@@ -85,27 +89,40 @@ class MarketModel():
         problem = cvx.Problem(objective, constraint)
         return problem
 
-    def reset(self):
-        self.time = 0
+    def reset(self, start_date):
+        self.date = start_date
 
     def step(self, action):
         # assign values to the cvxpy parameters
-        self.p_min.value, self.p_max.value, self.cost.value = self.get_bids_actors(action, self.time)
+        self.p_min.value, self.p_max.value, self.cost.value = self.get_bids_actors(action, self.date)
+        self.demand.value = self.get_demand(self.date)
 
         # solve the problem
-        self.opt_problem.solve(verbose=True)
-        self.time += self.delta_time
+        self.opt_problem.solve(verbose=False)
+        print(self.opt_problem.status)
+        self.date += self.delta_time
 
         # send result to battery
         return self.p.value[-1], self.cleared.value
 
-    def get_demand(self, time):
-        return 60
+    def get_demand(self, date):
+        load = self.caiso.get_load(start_at=date, end_at=date+self.delta_time)
+        load_list = []
+        for l in load:
+            load_list.append(l['load_MW'])
+        demand = np.mean(load_list)
+        return demand
 
-    def get_bids_actors(self, action, time):
-        p_min = np.array([10, 20, -47.8, 7.6, 11.2, 0, 0, 29.5, -9.0, -3.5, -6.1, -13.8, -14.9, action[0]])
-        p_max = np.array([10000, 80, -47.8, 7.6, 11.2, 0, 0, 29.5, -9.0, -3.5, -6.1, -13.8, -14.9, action[0]])
-        cost = np.array([2.450, 3.510, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, action[1]])
+    def get_bids_actors(self, action, date):
+        gen = pd.DataFrame(self.caiso.get_generation(start_at=date, end_at=date+self.delta_time))
+        gen_wind_list = gen[gen['fuel_name'] == 'wind']['gen_MW'].values
+        gen_solar_list = gen[gen['fuel_name'] == 'solar']['gen_MW'].values
+        gen_other_list = gen[gen['fuel_name'] == 'other']['gen_MW'].values
+        p_max = np.array([np.mean(gen_wind_list), np.mean(gen_solar_list), np.mean(gen_other_list), action[0]])
+        p_min = p_max.copy()
+        p_min[2] = 0
+        p_min[3] = 0
+        cost = np.array([2, 2, 9, action[1]])
         return p_min, p_max, cost
 
 
