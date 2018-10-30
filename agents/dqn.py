@@ -328,7 +328,7 @@ class QLearner(object):
         self.done_mask_ph: done_mask,
         self.learning_rate: self.optimizer_spec.lr_schedule.value(self.t)
       })
-
+      print("loss at time step {}: ".format(self.t), loss)
       self.num_param_updates += 1
       if self.num_param_updates % self.target_update_freq == 0:
         self.session.run(self.update_target_fn)
@@ -369,6 +369,7 @@ class QLearner(object):
 def learn(*args, **kwargs):
   alg = QLearner(*args, **kwargs)
   while not alg.stopping_criterion_met():
+    import ipdb;ipdb.set_trace()
     alg.step_env()
     # at this point, the environment should have been advanced one step (and
     # reset if done was true), and self.last_obs should point to the new latest

@@ -36,7 +36,6 @@ class Env():
         return np.array((0, 0, 0))
 
     def step(self, discrete_action):
-        import ipdb;ipdb.set_trace()
         action = self._discrete_to_continuous_action(discrete_action)
         quantity_cleared, price_cleared = self.market_model.step(action)
         actual_soe, penalty = self.storage_system.step(quantity_cleared)
@@ -109,7 +108,6 @@ class MarketModel():
         self.date = start_date
 
     def step(self, action):
-        import ipdb;ipdb.set_trace()
         # assign values to the cvxpy parameters
         self.p_min.value, self.p_max.value, self.cost.value = self.get_bids_actors(action, self.date)
         self.demand.value = self.get_demand(self.date)
@@ -120,7 +118,7 @@ class MarketModel():
         self.date += self.delta_time
 
         # send result to battery
-        return self.p.value[-1], self.cleared.value
+        return self.p.value[-1], self.cleared.value[-1]
 
     def get_demand(self, date):
         load = self.caiso.get_load(start_at=date, end_at=date+self.delta_time)
@@ -135,11 +133,15 @@ class MarketModel():
         gen_wind_list = gen[gen['fuel_name'] == 'wind']['gen_MW'].values
         gen_solar_list = gen[gen['fuel_name'] == 'solar']['gen_MW'].values
         gen_other_list = gen[gen['fuel_name'] == 'other']['gen_MW'].values
-        p_max = np.array([np.mean(gen_wind_list), np.mean(gen_solar_list), np.mean(gen_other_list), action[0]])
+        p_max = np.array([np.mean(gen_wind_list),
+                          np.mean(gen_solar_list),
+                          np.mean(gen_other_list),
+                          10000 + 10000 * (np.mean(gen_wind_list) + np.mean(gen_solar_list) + np.mean(gen_other_list)),
+                          action[0]])
         p_min = p_max.copy()
         p_min[2] = 0
         p_min[3] = 0
-        cost = np.array([2, 2, 9, action[1]])
+        cost = np.array([2, 2, 9, 1000, action[1]])
         return p_min, p_max, cost
 
 
