@@ -84,7 +84,7 @@ def get_session():
 
 
 def main():
-    env = Env(num_agents=5, start_date=datetime.datetime(2018, 10, 23))
+    env = Env(num_agents=5, start_date=datetime.datetime(2018, 8, 23))
     session = get_session()
     learn(env, session, num_timesteps=2e8)
 

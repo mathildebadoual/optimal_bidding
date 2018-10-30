@@ -4,6 +4,7 @@ from pyiso import client_factory
 import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
+import pytz
 
 # This class gather the two elements of the environment:
 # the battery and the market
@@ -78,7 +79,10 @@ class MarketModel():
         self.date = start_date
         self.delta_time = delta_time
         self.opt_problem = self.build_opt_problem()
-        self.caiso = client_factory('CAISO')
+        self.gen_df = pd.read_pickle("gen_caiso.pkl")
+        self.dem_df = pd.read_pickle("dem_caiso.pkl")
+        self.timezone = pytz.timezone("America/Los_Angeles")
+
 
     def build_opt_problem(self):
         # build parameters
@@ -121,15 +125,16 @@ class MarketModel():
         return self.p.value[-1], self.cleared.value[-1]
 
     def get_demand(self, date):
-        load = self.caiso.get_load(start_at=date, end_at=date+self.delta_time)
+        load = self.caiso_get_load(start_at=date, end_at=date+self.delta_time)
         load_list = []
         for l in load:
             load_list.append(l['load_MW'])
         demand = np.mean(load_list)
         return demand
 
+
     def get_bids_actors(self, action, date):
-        gen = pd.DataFrame(self.caiso.get_generation(start_at=date, end_at=date+self.delta_time))
+        gen = self.caiso_get_generation(start_at=date, end_at=date + self.delta_time)
         gen_wind_list = gen[gen['fuel_name'] == 'wind']['gen_MW'].values
         gen_solar_list = gen[gen['fuel_name'] == 'solar']['gen_MW'].values
         gen_other_list = gen[gen['fuel_name'] == 'other']['gen_MW'].values
@@ -143,6 +148,20 @@ class MarketModel():
         p_min[3] = 0
         cost = np.array([2, 2, 9, 1000, action[1]])
         return p_min, p_max, cost
+
+
+    def caiso_get_generation(self, start_at, end_at):
+        start_date_aware = self.timezone.localize(start_at)
+        end_date_aware = self.timezone.localize(end_at)
+        return self.gen_df[(start_date_aware < self.gen_df["timestamp"]) &
+                           (end_date_aware > self.gen_df["timestamp"])]
+
+
+    def caiso_get_load(self, start_at, end_at):
+        start_date_aware = self.timezone.localize(start_at)
+        end_date_aware = self.timezone.localize(end_at)
+        return self.dem_df[(start_date_aware < self.dem_df["timestamp"]) &
+                           (end_date_aware > self.dem_df["timestamp"])]
 
 
 class StorageSystem():
