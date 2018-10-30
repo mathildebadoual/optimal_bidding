@@ -6,6 +6,7 @@ import gym.spaces
 import itertools
 import numpy as np
 import random
+import datetime
 import tensorflow                as tf
 import tensorflow.contrib.layers as layers
 from collections import namedtuple

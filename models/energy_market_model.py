@@ -8,19 +8,35 @@ import pandas as pd
 # This class gather the two elements of the environment:
 # the battery and the market
 class Env():
-    action_space = np.array((100,), dtype=int)
+    action_space = np.array((2500,), dtype=int)
     observation_space = np.array((3,), dtype=int)
 
     def __init__(self, num_agents, start_date):
         self.market_model = MarketModel(num_agents, start_date)
         self.storage_system = StorageSystem()
+        self.start_date = start_date
 
-    def reset(self, start_date):
-        self.market_model.reset(start_date)
+        # Discrete quantities metadata
+        self.min_quantity, self.max_quantity = 0, 200
+        self.min_price, self.max_price = 0, 20
+        self.n_discrete_price = 50
+        self.n_discrete_quantity = 50
+
+    @property
+    def quantity_precision(self):
+        return (self.max_quantity - self.min_quantity) / self.n_discrete_quantity
+
+    @property
+    def price_precision(self):
+        return (self.max_price - self.min_price) / self.n_discrete_price
+
+    def reset(self):
+        self.market_model.reset(self.start_date)
         self.storage_system.reset()
         return np.array((0, 0, 0))
 
     def step(self, discrete_action):
+        import ipdb;ipdb.set_trace()
         action = self._discrete_to_continuous_action(discrete_action)
         quantity_cleared, price_cleared = self.market_model.step(action)
         actual_soe, penalty = self.storage_system.step(quantity_cleared)
@@ -51,10 +67,10 @@ class Env():
         :param discrete_action: int
         :return: (float, float)
         """
-        i = discrete_action // 10
-        j = discrete_action % 10
+        # maps the integer discrete_action to the grid (quantity, price)
+        quantity = (discrete_action % self.n_discrete_quantity) * self.quantity_precision
+        cost = (discrete_action // self.n_discrete_quantity) * self.price_precision
 
-        quantity, cost = i * 10, j
         return quantity, cost
 
 class MarketModel():
@@ -93,6 +109,7 @@ class MarketModel():
         self.date = start_date
 
     def step(self, action):
+        import ipdb;ipdb.set_trace()
         # assign values to the cvxpy parameters
         self.p_min.value, self.p_max.value, self.cost.value = self.get_bids_actors(action, self.date)
         self.demand.value = self.get_demand(self.date)

@@ -1,4 +1,5 @@
 import tensorflow as tf
+import datetime
 
 import agents.dqn as dqn
 from agents.dqn_utils import *
@@ -83,7 +84,7 @@ def get_session():
 
 
 def main():
-    env = Env(num_agents=1)
+    env = Env(num_agents=4, start_date=datetime.datetime(2018, 10, 23))
     session = get_session()
     learn(env, session, num_timesteps=2e8)
 
