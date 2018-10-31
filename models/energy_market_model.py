@@ -6,6 +6,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pytz
 
+
+class EmptyDataException(Exception):
+    def __init__(self):
+        super().__init__()
+
+class OptimizationException(Exception):
+    def __init__(self):
+        super().__init__()
+
+
 # This class gather the two elements of the environment:
 # the battery and the market
 class Env():
@@ -38,7 +48,14 @@ class Env():
 
     def step(self, discrete_action):
         action = self._discrete_to_continuous_action(discrete_action)
-        quantity_cleared, price_cleared = self.market_model.step(action)
+        try:
+            quantity_cleared, price_cleared = self.market_model.step(action)
+        except OptimizationException:
+            return 0, 0, False, None
+        except EmptyDataException:
+            # import ipdb;ipdb.set_trace()
+            print("end of data, resetting the environment...")
+            return 0, 0, True, None
         actual_soe, penalty = self.storage_system.step(quantity_cleared)
 
         # define state and reward
@@ -82,6 +99,7 @@ class MarketModel():
         self.gen_df = pd.read_pickle("gen_caiso.pkl")
         self.dem_df = pd.read_pickle("dem_caiso.pkl")
         self.timezone = pytz.timezone("America/Los_Angeles")
+        self.print_optimality = False
 
 
     def build_opt_problem(self):
@@ -118,23 +136,29 @@ class MarketModel():
 
         # solve the problem
         self.opt_problem.solve(verbose=False)
-        print(self.opt_problem.status)
+        if self.print_optimality or "optimal" not in self.opt_problem.status:
+            print(self.opt_problem.status)
+            raise(OptimizationException)
         self.date += self.delta_time
 
         # send result to battery
+        try:
+            self.p.value[-1], self.cleared.value[-1]
+        except TypeError:
+            import ipdb;ipdb.set_trace()
         return self.p.value[-1], self.cleared.value[-1]
 
     def get_demand(self, date):
         load = self.caiso_get_load(start_at=date, end_at=date+self.delta_time)
-        load_list = []
-        for l in load:
-            load_list.append(l['load_MW'])
+        load_list = load['load_MW']
         demand = np.mean(load_list)
         return demand
 
 
     def get_bids_actors(self, action, date):
         gen = self.caiso_get_generation(start_at=date, end_at=date + self.delta_time)
+        if gen.empty:
+            raise EmptyDataException
         gen_wind_list = gen[gen['fuel_name'] == 'wind']['gen_MW'].values
         gen_solar_list = gen[gen['fuel_name'] == 'solar']['gen_MW'].values
         gen_other_list = gen[gen['fuel_name'] == 'other']['gen_MW'].values
@@ -153,14 +177,14 @@ class MarketModel():
     def caiso_get_generation(self, start_at, end_at):
         start_date_aware = self.timezone.localize(start_at)
         end_date_aware = self.timezone.localize(end_at)
-        return self.gen_df[(start_date_aware < self.gen_df["timestamp"]) &
+        return self.gen_df[(start_date_aware <= self.gen_df["timestamp"]) &
                            (end_date_aware > self.gen_df["timestamp"])]
 
 
     def caiso_get_load(self, start_at, end_at):
         start_date_aware = self.timezone.localize(start_at)
         end_date_aware = self.timezone.localize(end_at)
-        return self.dem_df[(start_date_aware < self.dem_df["timestamp"]) &
+        return self.dem_df[(start_date_aware <= self.dem_df["timestamp"]) &
                            (end_date_aware > self.dem_df["timestamp"])]
 
 

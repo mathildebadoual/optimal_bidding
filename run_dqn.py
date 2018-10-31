@@ -42,7 +42,7 @@ def learn(env,
     exploration_schedule = PiecewiseSchedule(
         [
             (0, 1.0),
-            (5e5, 0.0),
+            (2e4, 0.01),
             (num_iterations / 2, 0.01),
         ], outside_value=0.01
     )
@@ -57,10 +57,10 @@ def learn(env,
         replay_buffer_size=1000000,
         batch_size=32,
         gamma=0.99,
-        learning_starts=50000,
+        learning_starts=500,
         learning_freq=4,
         frame_history_len=4,
-        target_update_freq=10000,
+        target_update_freq=1000,
         grad_norm_clipping=10,
         double_q=True,
     )
@@ -84,7 +84,7 @@ def get_session():
 
 
 def main():
-    env = Env(num_agents=5, start_date=datetime.datetime(2018, 8, 23))
+    env = Env(num_agents=5, start_date=datetime.datetime(2017, 7, 3))
     session = get_session()
     learn(env, session, num_timesteps=2e8)
 
