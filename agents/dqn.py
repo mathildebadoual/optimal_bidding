@@ -28,7 +28,7 @@ class QLearner(object):
     replay_buffer_size=1000000,
     batch_size=32,
     gamma=0.99,
-    learning_starts=50000,
+    learning_starts=500,
     learning_freq=4,
     frame_history_len=4,
     target_update_freq=10000,
@@ -204,7 +204,7 @@ class QLearner(object):
     self.mean_episode_reward      = -float('nan')
     self.best_mean_episode_reward = -float('inf')
     self.last_obs = self.env.reset()
-    self.log_every_n_steps = 10000
+    self.log_every_n_steps = 1000
 
     self.start_time = None
     self.t = 0
@@ -328,7 +328,6 @@ class QLearner(object):
         self.done_mask_ph: done_mask,
         self.learning_rate: self.optimizer_spec.lr_schedule.value(self.t)
       })
-      print("loss at time step {}: ".format(self.t), loss)
       self.num_param_updates += 1
       if self.num_param_updates % self.target_update_freq == 0:
         self.session.run(self.update_target_fn)
