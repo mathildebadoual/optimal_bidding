@@ -369,8 +369,8 @@ class QLearner(object):
 def learn(*args, **kwargs):
   alg = QLearner(*args, **kwargs)
   while not alg.stopping_criterion_met():
-    import ipdb;ipdb.set_trace()
     alg.step_env()
+    import ipdb;ipdb.set_trace()
     # at this point, the environment should have been advanced one step (and
     # reset if done was true), and self.last_obs should point to the new latest
     # observation
