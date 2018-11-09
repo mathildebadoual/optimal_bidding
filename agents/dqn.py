@@ -11,6 +11,7 @@ import tensorflow                as tf
 import tensorflow.contrib.layers as layers
 from collections import namedtuple
 from agents.dqn_utils import *
+import cvxpy as cvx
 
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
@@ -256,7 +257,13 @@ class QLearner(object):
     else:
       q_values = self.session.run(self.q_values,
                                   feed_dict={self.obs_t_ph: [recent_observations]})
-      action = np.argmax(q_values[0])
+      #action = np.argmax(q_values[0])a
+      q_choice = cvx.Variable((1, len(q_values[0])), boolean=True)
+      constraints = [np.sum(q_choice) == 1]
+      obj = cvx.Maximize(q_choice * q_values[0])
+      opt.solve()
+      action = np.argmax(q_choice)
+      print(action)
 
     # Perform the action
     obs, reward, done, info = self.env.step(action)
