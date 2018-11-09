@@ -1,5 +1,5 @@
 import unittest
-from models.energy_market_model import Env, MarketModel, StorageSystem
+from models.energy_market_model import GlobalEnv, MarketModel, StorageSystem
 import random
 import numpy as np
 import datetime

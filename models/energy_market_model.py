@@ -5,7 +5,8 @@ import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 import pytz
-
+from gym import spaces
+from gym import Env
 
 class EmptyDataException(Exception):
     def __init__(self):
@@ -18,20 +19,25 @@ class OptimizationException(Exception):
 
 # This class gather the two elements of the environment:
 # the battery and the market
-class Env():
-    action_space = np.array((2500,), dtype=int)
-    observation_space = np.array((3,), dtype=int)
+class GlobalEnv(Env):
 
     def __init__(self, num_agents, start_date):
         self.market_model = MarketModel(num_agents, start_date)
         self.storage_system = StorageSystem()
         self.start_date = start_date
+        self.state = np.array([0, 0, 0, 0, 0])
 
         # Discrete quantities metadata
-        self.min_quantity, self.max_quantity = 0, 200
+        self.min_quantity, self.max_quantity = \
+            -self.storage_system.max_power, self.storage_system.max_power
         self.min_price, self.max_price = 0, 20
         self.n_discrete_price = 50
         self.n_discrete_quantity = 50
+
+        # gym variables
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(5,))
+        self.action_space = spaces.Box(low=-np.inf, high=np.inf,
+                                       shape=(self.n_discrete_quantity * self.n_discrete_price,))
 
     @property
     def quantity_precision(self):
@@ -44,10 +50,10 @@ class Env():
     def reset(self):
         self.market_model.reset(self.start_date)
         self.storage_system.reset()
-        return np.array((0, 0, 0))
+        return np.array((0, 0, 0, 0, 0))
 
     def step(self, discrete_action):
-        action = self._discrete_to_continuous_action(discrete_action)
+        quantity, cost = action = self._discrete_to_continuous_action(discrete_action)
         try:
             quantity_cleared, price_cleared = self.market_model.step(action)
         except OptimizationException:
@@ -59,15 +65,15 @@ class Env():
         actual_soe, penalty = self.storage_system.step(quantity_cleared)
 
         # define state and reward
-        state = np.array((quantity_cleared, price_cleared, actual_soe))
+        self.state = np.array((quantity_cleared, price_cleared, quantity, cost, actual_soe))
         reward = quantity_cleared * price_cleared - penalty
         done = False
         info = None
 
-        return state, reward, done, info
+        return self.state, reward, done, info
 
     def render(self):
-        return
+        return print(self.state)
 
     def close(self):
         return
@@ -204,8 +210,10 @@ class StorageSystem():
         self.soe = soe_init
 
     def step(self, power):
-        penalty = 100
+        penalty = 1000
         energy_to_add = self.efficiency_ratio * power
+        # FixMe: Could min_power != 0 make sense? If yes, we should include 0
+        # FixMe: in the list of feasible power values, right?
         if self.min_power <= abs(energy_to_add) <= self.max_power:
             next_soe = self.soe + energy_to_add
             if self.min_soe <= next_soe <= self.max_soe:
