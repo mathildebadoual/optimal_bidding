@@ -177,6 +177,7 @@ class MarketModel():
         p_min[2] = 0
         p_min[3] = 0
         cost = np.array([2, 2, 9, 1000, action[1]])
+        print(p_min, p_max, cost)
         return p_min, p_max, cost
 
 
