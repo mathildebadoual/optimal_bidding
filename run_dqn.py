@@ -3,7 +3,7 @@ import datetime
 
 import agents.dqn as dqn
 from agents.dqn_utils import *
-from models.energy_market_model import Env
+from models.energy_market_model import GlobalEnv
 
 
 def model(input, num_actions, scope, reuse=False):
@@ -42,7 +42,7 @@ def learn(env,
     exploration_schedule = PiecewiseSchedule(
         [
             (0, 1.0),
-            (2e4, 0.01),
+            (5e4, 0.01),
             (num_iterations / 2, 0.01),
         ], outside_value=0.01
     )
@@ -56,7 +56,7 @@ def learn(env,
         stopping_criterion=stopping_criterion,
         replay_buffer_size=1000000,
         batch_size=32,
-        gamma=0.99,
+        gamma=0.95,
         learning_starts=500,
         learning_freq=4,
         frame_history_len=4,
@@ -84,7 +84,7 @@ def get_session():
 
 
 def main():
-    env = Env(num_agents=5, start_date=datetime.datetime(2017, 7, 3))
+    env = GlobalEnv(num_agents=5, start_date=datetime.datetime(2017, 7, 3))
     session = get_session()
     learn(env, session, num_timesteps=2e8)
 

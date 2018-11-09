@@ -108,8 +108,8 @@ class QLearner(object):
     ###############
 
     # This means we are running on low-dimensional observations (e.g. RAM)
-    input_shape = self.env.observation_space
-    self.num_actions = int(self.env.action_space[0])
+    input_shape = self.env.observation_space.shape
+    self.num_actions = self.env.action_space.shape[0]
 
     # set up placeholders
     # placeholder for current observation (or state)
@@ -376,7 +376,6 @@ def learn(*args, **kwargs):
   alg = QLearner(*args, **kwargs)
   while not alg.stopping_criterion_met():
     alg.step_env()
-    import ipdb;ipdb.set_trace()
     # at this point, the environment should have been advanced one step (and
     # reset if done was true), and self.last_obs should point to the new latest
     # observation
