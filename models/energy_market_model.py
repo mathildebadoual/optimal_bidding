@@ -91,8 +91,8 @@ class GlobalEnv(Env):
         :return: (float, float)
         """
         # maps the integer discrete_action to the grid (quantity, price)
-        quantity = (discrete_action % self.n_discrete_quantity) * self.quantity_precision
-        cost = (discrete_action // self.n_discrete_quantity) * self.price_precision
+        quantity = self.min_quantity + (discrete_action % self.n_discrete_quantity) * self.quantity_precision
+        cost = self.min_price + (discrete_action // self.n_discrete_quantity) * self.price_precision
 
         return quantity, cost
 
