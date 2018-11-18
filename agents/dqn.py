@@ -109,7 +109,7 @@ class QLearner(object):
 
     # This means we are running on low-dimensional observations (e.g. RAM)
     input_shape = self.env.observation_space.shape
-    self.num_actions = self.env.action_space.shape[0]
+    self.num_actions = self.env.action_space.n
 
     # set up placeholders
     # placeholder for current observation (or state)
@@ -253,17 +253,17 @@ class QLearner(object):
 
     # Chose the next action to make
     if np.random.random() < self.exploration.value(self.t) or not self.model_initialized:
-      action = np.random.randint(0, self.num_actions)
+      action = self.env.action_space.sample()
     else:
       q_values = self.session.run(self.q_values,
                                   feed_dict={self.obs_t_ph: [recent_observations]})
-      #action = np.argmax(q_values[0])a
-      q_choice = cvx.Variable((1, len(q_values[0])), boolean=True)
-      constraints = [np.sum(q_choice) == 1]
-      obj = cvx.Maximize(q_choice * q_values[0])
-      opt.solve()
-      action = np.argmax(q_choice)
-      print(action)
+      action = np.argmax(q_values[0])
+      # q_choice = cvx.Variable((1, len(q_values[0])), boolean=True)
+      # constraints = [np.sum(q_choice) == 1]
+      # obj = cvx.Maximize(q_choice * q_values[0])
+      # opt.solve()
+      # action = np.argmax(q_choice)
+      # print(action)
 
     # Perform the action
     obs, reward, done, info = self.env.step(action)

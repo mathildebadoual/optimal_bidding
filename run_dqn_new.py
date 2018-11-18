@@ -1,9 +1,10 @@
 import tensorflow as tf
 import datetime
 import gym
+import energym
+
 import agents.dqn as dqn
 from agents.dqn_utils import *
-from models.energy_market_model import GlobalEnv
 
 
 def model(input, num_actions, scope, reuse=False):
@@ -84,7 +85,7 @@ def get_session():
 
 
 def main():
-    env = GlobalEnv(num_agents=5, start_date=datetime.datetime(2017, 7, 3))
+    env = gym.make('energy_market_battery-v0')
     session = get_session()
     learn(env, session, num_timesteps=2e8)
 
