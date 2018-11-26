@@ -3,6 +3,7 @@ import datetime
 import gym
 import energym
 
+
 import agents.dqn as dqn
 from agents.dqn_utils import *
 
@@ -38,7 +39,7 @@ def learn(env,
     def stopping_criterion(env, t):
         # notice that here t is the number of steps of the wrapped env,
         # which is different from the number of steps in the underlying env
-        return t > 1000000
+        return t > 100000
 
     exploration_schedule = PiecewiseSchedule(
         [
@@ -87,7 +88,7 @@ def get_session():
 def main():
     env = gym.make('energy_market_battery-v0')
     session = get_session()
-    learn(env, session, num_timesteps=2e8)
+    learn(env, session, num_timesteps=1e8)
 
 
 if __name__ == "__main__":
