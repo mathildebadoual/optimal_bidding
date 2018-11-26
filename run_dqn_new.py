@@ -2,6 +2,7 @@ import tensorflow as tf
 import datetime
 import gym
 import energym
+import argparse
 
 import agents.dqn as dqn
 from agents.dqn_utils import *
@@ -18,7 +19,8 @@ def model(input, num_actions, scope, reuse=False):
 
 def learn(env,
           session,
-          num_timesteps):
+          num_timesteps,
+          rew_file):
     # This is just a rough estimate
     num_iterations = float(num_timesteps) / 4.0
 
@@ -55,6 +57,7 @@ def learn(env,
         session=session,
         exploration=exploration_schedule,
         stopping_criterion=stopping_criterion,
+        rew_file=rew_file,
         replay_buffer_size=1000000,
         batch_size=32,
         gamma=0.95,
@@ -85,9 +88,18 @@ def get_session():
 
 
 def main():
+    # ************ ARGPARSE ************
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--rew_file', '-rf', type=str, default=None,
+                        help='Path for the rewards file (optional).')
+    args = parser.parse_args()
+
+    # ************ MAIN ************
     env = gym.make('energy_market_battery-v0')
     session = get_session()
-    learn(env, session, num_timesteps=2e8)
+    learn(env, session,
+          num_timesteps=2e8,
+          rew_file=args.rew_file)
 
 
 if __name__ == "__main__":
