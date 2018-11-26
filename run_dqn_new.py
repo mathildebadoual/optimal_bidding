@@ -4,6 +4,7 @@ import gym
 import energym
 import argparse
 
+
 import agents.dqn as dqn
 from agents.dqn_utils import *
 
@@ -40,7 +41,7 @@ def learn(env,
     def stopping_criterion(env, t):
         # notice that here t is the number of steps of the wrapped env,
         # which is different from the number of steps in the underlying env
-        return t > 1000000
+        return t > 100000
 
     exploration_schedule = PiecewiseSchedule(
         [
