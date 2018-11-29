@@ -125,7 +125,7 @@ def main():
     env.close()
 
     # test controller
-    test_model(controller, start_time_test=start_time_test)
+    test_model(controller)
 
 
 if __name__ == "__main__":

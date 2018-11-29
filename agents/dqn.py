@@ -406,7 +406,7 @@ class QLearner(object):
             save_dict['soc'].append(obs[0])
             save_dict['power_cleared'].append(obs[1])
             save_dict['reward'].append(reward)
-        return done
+        return save_dict
 
     def get_action_todo(self, obs):
         q_values = self.session.run(self.q_values, feed_dict={self.obs_t_ph: [obs]})
