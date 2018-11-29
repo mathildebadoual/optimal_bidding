@@ -96,7 +96,6 @@ class QLearner(object):
         self.exploration = exploration
         self.rew_file = str(uuid.uuid4()) + '.pkl' if rew_file is None else rew_file
         self.episode_rewards = []
-        self.saver = tf.train.Saver()
         self.save_path = save_path
         self.q_func = q_func
 
@@ -325,6 +324,7 @@ class QLearner(object):
                     self.obs_t_ph: obs_batch,
                     self.obs_tp1_ph: next_obs_batch,
                 })
+                self.save_model()
                 self.model_initialized = True
 
             loss, _ = self.session.run((self.total_error, self.train_fn), feed_dict={
@@ -361,6 +361,7 @@ class QLearner(object):
             if self.start_time is not None:
                 print("running time %f" % ((time.time() - self.start_time) / 60.))
 
+            self.save_model()
 
             self.start_time = time.time()
 
@@ -375,7 +376,10 @@ class QLearner(object):
 
 
     def save_model(self):
-        path = self.saver.save(self.sess, self.save_path)
+        if not self.model_initialized:
+            self.saver = tf.train.Saver()
+            print('initialized')
+        path = self.saver.save(self.session, self.save_path)
         print("Model saved in path: %s" % path)
 
     def test_model(self, start_date):

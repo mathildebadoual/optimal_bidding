@@ -121,9 +121,6 @@ def main():
         # observation
         controller.update_model()
         controller.log_progress()
-        t = time.clock()
-        controller.save_model()
-        print(time.clock() - t)
 
     env.close()
 
