@@ -77,7 +77,7 @@ class ExpertAgent(object):
 
     def planning(self, step):
         # solve optimization problem from actual time step for a certain horizon
-        self.price_predictions_interval.value = self.price_prediction_df[self.price_prediction_dict['time_step'] >= step].values[:self.time_horizon]
+        self.price_predictions_interval.value = self.price_prediction_df[self.price_prediction_df['time_step'] >= step].values[:self.time_horizon]
         self.initial_soe.value = self.memory_dict['soe'][-1]
 
         self.Problem.solve()

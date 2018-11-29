@@ -2,6 +2,7 @@ import tensorflow as tf
 import datetime
 import gym
 import energym
+import time
 
 
 import agents.dqn as dqn
@@ -17,9 +18,11 @@ def model(input, num_actions, scope, reuse=False):
         return out
 
 
-def learn(env,
+def create_controller(env,
           session,
-          num_timesteps):
+          num_timesteps,
+          save_path):
+
     # This is just a rough estimate
     num_iterations = float(num_timesteps) / 4.0
 
@@ -49,7 +52,7 @@ def learn(env,
         ], outside_value=0.01
     )
 
-    dqn.learn(
+    controller = dqn.QLearner(
         env=env,
         q_func=model,
         optimizer_spec=optimizer,
@@ -65,8 +68,14 @@ def learn(env,
         target_update_freq=1000,
         grad_norm_clipping=10,
         double_q=True,
+        save_path=save_path,
     )
-    env.close()
+
+    return controller
+
+
+def test_model(controller, start_time_test):
+    controller.test_model(start_time_test)
 
 
 def get_available_gpus():
@@ -87,8 +96,29 @@ def get_session():
 
 def main():
     env = gym.make('energy_market_battery-v0')
+    # divide data in test and train
+
+
+    # initialize
     session = get_session()
-    learn(env, session, num_timesteps=1e8)
+    controller = create_controller(env, session, num_timesteps=1e8, save_path='/tmp/model.ckpt')
+
+    # train controller
+    while not controller.stopping_criterion_met():
+        controller.step_env()
+        # at this point, the environment should have been advanced one step (and
+        # reset if done was true), and self.last_obs should point to the new latest
+        # observation
+        controller.update_model()
+        controller.log_progress()
+        t = time.clock()
+        controller.save_model()
+        print(time.clock() - t)
+
+    env.close()
+
+    # test controller
+    test_model(controller, start_time_test=start_time_test)
 
 
 if __name__ == "__main__":

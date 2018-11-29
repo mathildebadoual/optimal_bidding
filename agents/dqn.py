@@ -29,6 +29,7 @@ class QLearner(object):
             grad_norm_clipping=10,
             rew_file=None,
             double_q=True,
+            save_path='',
             lander=False):
         """Run Deep Q-learning algorithm.
 
@@ -95,6 +96,9 @@ class QLearner(object):
         self.exploration = exploration
         self.rew_file = str(uuid.uuid4()) + '.pkl' if rew_file is None else rew_file
         self.episode_rewards = []
+        self.saver = tf.train.Saver()
+        self.save_path = save_path
+        self.q_func = q_func
 
         ###############
         # BUILD MODEL #
@@ -143,7 +147,7 @@ class QLearner(object):
         # q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='q_func')
         # Older versions of TensorFlow may require using "VARIABLES" instead of "GLOBAL_VARIABLES"
         # Tip: use huber_loss (from dqn_utils) instead of squared error when defining self.total_error
-        ######
+        ######]
 
         # YOUR CODE HERE
         # Actual Q values
@@ -341,18 +345,18 @@ class QLearner(object):
         if len(episode_rewards) > 0:
             self.mean_episode_reward = np.mean(episode_rewards[-100:])
 
-    if len(episode_rewards) > 100:
-        self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
+        if len(episode_rewards) > 100:
+            self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
 
-    if self.t % self.log_every_n_steps == 0 and self.model_initialized:
-        print("Timestep %d" % (self.t,))
-        print("mean reward (100 episodes) %f" % self.mean_episode_reward)
-        print("best mean reward %f" % self.best_mean_episode_reward)
-        print("episodes %d" % len(episode_rewards))
-        print("exploration %f" % self.exploration.value(self.t))
-        print("learning_rate %f" % self.optimizer_spec.lr_schedule.value(self.t))
-        if self.start_time is not None:
-            print("running time %f" % ((time.time() - self.start_time) / 60.))
+        if self.t % self.log_every_n_steps == 0 and self.model_initialized:
+            print("Timestep %d" % (self.t,))
+            print("mean reward (100 episodes) %f" % self.mean_episode_reward)
+            print("best mean reward %f" % self.best_mean_episode_reward)
+            print("episodes %d" % len(episode_rewards))
+            print("exploration %f" % self.exploration.value(self.t))
+            print("learning_rate %f" % self.optimizer_spec.lr_schedule.value(self.t))
+            if self.start_time is not None:
+                print("running time %f" % ((time.time() - self.start_time) / 60.))
 
         self.start_time = time.time()
 
@@ -365,13 +369,37 @@ class QLearner(object):
                  "timestep": self.t},
                 f, pickle.HIGHEST_PROTOCOL)
 
+    def save_model(self):
+        path = self.saver.save(self.sess, self.save_path)
+        print("Model saved in path: %s" % path)
 
-def learn(*args, **kwargs):
-    alg = QLearner(*args, **kwargs)
-    while not alg.stopping_criterion_met():
-        alg.step_env()
-        # at this point, the environment should have been advanced one step (and
-        # reset if done was true), and self.last_obs should point to the new latest
-        # observation
-        alg.update_model()
-        alg.log_progress()
+    def test_model(self, start_date):
+        save_dict = {
+            'power_bid': [],
+            'price_bid': [],
+            'soc': [],
+            'power_cleared': [],
+            'reward': [],
+        }
+        done = False
+        obs = self.env.reset(start_date=start_date)
+        save_dict['soc'].append(obs[0])
+        save_dict['power_cleared'].append(obs[1])
+        save_dict['power_bid'].append(0)
+        save_dict['price_bid'].append(0)
+        save_dict['reward'].append(0)
+        while not done:
+            action = self.get_action_todo(obs)
+            power, cost = self.env.discrete_to_continuous_action(action)
+            save_dict['power_bid'].append(power)
+            save_dict['price_bid'].append(cost)
+            obs, reward, done, info = self.env.step(action)
+            save_dict['soc'].append(obs[0])
+            save_dict['power_cleared'].append(obs[1])
+            save_dict['reward'].append(reward)
+        return done
+
+    def get_action_todo(self, obs):
+        q_values = self.session.run(self.q_values, feed_dict={self.obs_t_ph: [obs]})
+        action = np.argmax(q_values[0])
+        return action

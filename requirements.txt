@@ -4,3 +4,5 @@ pandas
 gym
 tensorflow
 cvxpy
+matplotlib
+pyiso
