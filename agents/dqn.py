@@ -248,19 +248,9 @@ class QLearner(object):
         frame_idx = self.replay_buffer.store_frame(self.last_obs)
         recent_observations = self.replay_buffer.encode_recent_observation()
 
+
         # Chose the next action to make
-        if np.random.random() < self.exploration.value(self.t) or not self.model_initialized:
-            action = self.env.action_space.sample()
-        else:
-            q_values = self.session.run(self.q_values,
-                                        feed_dict={self.obs_t_ph: [recent_observations]})
-            action = np.argmax(q_values[0])
-            # q_choice = cvx.Variable((1, len(q_values[0])), boolean=True)
-            # constraints = [np.sum(q_choice) == 1]
-            # obj = cvx.Maximize(q_choice * q_values[0])
-            # opt.solve()
-            # action = np.argmax(q_choice)
-            # print(action)
+        action = self.epsilon_greedy_policy(recent_observations)
 
         # Perform the action
         obs, reward, done, info = self.env.step(action)
@@ -271,6 +261,19 @@ class QLearner(object):
         self.episode_rewards.append(reward)
 
         self.last_obs = obs
+
+    def epsilon_greedy_policy(self, recent_observations):
+        """
+        Perform epsilon greedy policy
+        :return:
+        """
+        if np.random.random() < self.exploration.value(self.t) or not self.model_initialized:
+            action = self.env.action_space.sample()
+        else:
+            q_values = self.session.run(self.q_values,
+                                        feed_dict={self.obs_t_ph: [recent_observations]})
+            action = np.argmax(q_values[0])
+        return action
 
     def update_model(self):
         ### 3. Perform experience replay and train the network.
@@ -327,7 +330,7 @@ class QLearner(object):
             loss, _ = self.session.run((self.total_error, self.train_fn), feed_dict={
                 self.obs_t_ph: obs_batch,
                 self.act_t_ph: act_batch,
-                self.rew_t_ph: rew_batch,
+                self.rew_t_ph: rew_batch/10**7,
                 self.obs_tp1_ph: next_obs_batch,
                 self.done_mask_ph: done_mask,
                 self.learning_rate: self.optimizer_spec.lr_schedule.value(self.t)
@@ -358,16 +361,18 @@ class QLearner(object):
             if self.start_time is not None:
                 print("running time %f" % ((time.time() - self.start_time) / 60.))
 
-        self.start_time = time.time()
 
-        sys.stdout.flush()
+            self.start_time = time.time()
 
-        with open(self.rew_file, 'ab') as f:
-            pickle.dump(
-                {"mean_reward": self.mean_episode_reward,
-                 "best_mean_reward": self.best_mean_episode_reward,
-                 "timestep": self.t},
-                f, pickle.HIGHEST_PROTOCOL)
+            sys.stdout.flush()
+
+            with open(self.rew_file, 'ab') as f:
+                pickle.dump(
+                    {"mean_reward": self.mean_episode_reward,
+                     "best_mean_reward": self.best_mean_episode_reward,
+                     "timestep": self.t},
+                    f, pickle.HIGHEST_PROTOCOL)
+
 
     def save_model(self):
         path = self.saver.save(self.sess, self.save_path)

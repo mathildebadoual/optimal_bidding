@@ -3,7 +3,7 @@ import datetime
 import gym
 import energym
 import time
-
+import argparse
 
 import agents.dqn as dqn
 from agents.dqn_utils import *
@@ -21,7 +21,8 @@ def model(input, num_actions, scope, reuse=False):
 def create_controller(env,
           session,
           num_timesteps,
-          save_path):
+          save_path,
+          rew_file):
 
     # This is just a rough estimate
     num_iterations = float(num_timesteps) / 4.0
@@ -59,6 +60,7 @@ def create_controller(env,
         session=session,
         exploration=exploration_schedule,
         stopping_criterion=stopping_criterion,
+        rew_file=rew_file,
         replay_buffer_size=1000000,
         batch_size=32,
         gamma=0.95,
@@ -95,13 +97,21 @@ def get_session():
 
 
 def main():
+    # ************ ARGPARSE ************
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--rew_file', '-rf', type=str, default=None,
+                        help='Path for the rewards file (optional).')
+    args = parser.parse_args()
+
+    # ************ MAIN ************
     env = gym.make('energy_market_battery-v0')
     # divide data in test and train
 
 
     # initialize
     session = get_session()
-    controller = create_controller(env, session, num_timesteps=1e8, save_path='/tmp/model.ckpt')
+
+    controller = create_controller(env, session, num_timesteps=1e8, save_path='/tmp/model.ckpt', rew_file=args.rew_file)
 
     # train controller
     while not controller.stopping_criterion_met():
