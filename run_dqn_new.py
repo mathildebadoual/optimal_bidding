@@ -4,6 +4,8 @@ import gym
 import energym
 import time
 import argparse
+import pickle
+import pandas as pd
 
 import agents.dqn as dqn
 from agents.dqn_utils import *
@@ -77,7 +79,7 @@ def create_controller(env,
 
 
 def test_model(controller):
-    controller.test_model()
+    return controller.test_model()
 
 
 def get_available_gpus():
@@ -101,10 +103,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--rew_file', '-rf', type=str, default=None,
                         help='Path for the rewards file (optional).')
+    parser.add_argument("--test", "-t", action="store_true")
     args = parser.parse_args()
 
     # ************ MAIN ************
-    env = gym.make('energy_market_battery-v0')
+    start_time = datetime.datetime.now()
+    start_time = [start_time.day,start_time.hour,
+                  start_time.minute, start_time.second]
+
+    env = gym.make('energy_market_battery-v1')
     # divide data in test and train
 
 
@@ -114,18 +121,32 @@ def main():
     controller = create_controller(env, session, num_timesteps=1e8, save_path='/tmp/model.ckpt', rew_file=args.rew_file)
 
     # train controller
-    while not controller.stopping_criterion_met():
-        controller.step_env()
-        # at this point, the environment should have been advanced one step (and
-        # reset if done was true), and self.last_obs should point to the new latest
-        # observation
-        controller.update_model()
-        controller.log_progress()
+    if not args.test:
+        try:
+            while not controller.stopping_criterion_met():
+                    controller.step_env()
+                    # at this point, the environment should have been advanced one step (and
+                    # reset if done was true), and self.last_obs should point to the new latest
+                    # observation
+                    controller.update_model()
+                    controller.log_progress()
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt error caught")
+    else:
+        controller.saver.restore(controller.session, '/tmp/model.ckpt')
+        # FixMe: Ugly
+        controller.env._energy_market._gen_df = pd.read_pickle("data/gen_caiso_test.pkl")
+        controller.env._energy_market._dem_df = pd.read_pickle("data/dem_caiso_test.pkl")
 
     env.close()
 
     # test controller
-    test_model(controller)
+    save_dict = test_model(controller)
+
+    # save result
+    with open('results/{}_{}_{}_{}.pkl'.format(*start_time), 'wb') as pickle_file:
+        pickle.dump(save_dict, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 
 if __name__ == "__main__":

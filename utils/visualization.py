@@ -3,14 +3,14 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
-class Visualize():
+class Plotter():
     def __init__(self):
         self.plots_waiting = []
 
-    def plot(self, to_plot, title, legend):
+    def plot(self, to_plot, title, legend, n_data):
         plt.figure(figsize=(10, 5))
         for i, element in enumerate(to_plot):
-            plt.plot(element, label=legend[i])
+            plt.plot(element[0][-n_data:], element[1][-n_data:], label=legend[i])
         plt.legend()
         plt.title(title)
         plt.grid()

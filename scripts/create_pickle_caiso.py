@@ -13,7 +13,8 @@ def main():
     parser.add_argument('--end_date', type=str, default='20181101')
     parser.add_argument('--which', type=str, default='all',
                         help="choose between 'all', 'gen' and 'load'")
-    parser.add_argument('--test_train', help='divide the set in train and test test', action='store_true')
+    parser.add_argument('--test_train', help='divide the set in train and test test',
+                        action='store_true')
     parser.add_argument('--percentage', type=float, default=0.1)
     args = parser.parse_args()
 
@@ -54,7 +55,7 @@ def download(start_date, end_date, caiso, type, name_picke):
     all_data = []
     date_0 = start_date
     date_1 = start_date + datetime.timedelta(days=30)
-    pbar = tqdm(total=(end_date - start_date).days / 30)
+    pbar = tqdm(total=(end_date - start_date).days // 30)
     while date_1 <= end_date:
         if type == 'gen':
             all_data += caiso.get_generation(start_at=date_0, end_at=date_1)

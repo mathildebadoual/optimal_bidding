@@ -92,6 +92,7 @@ class QLearner(object):
         self.learning_starts = learning_starts
         self.stopping_criterion = stopping_criterion
         self.env = env
+        self.test_env = env
         self.session = session
         self.exploration = exploration
         self.rew_file = str(uuid.uuid4()) + '.pkl' if rew_file is None else rew_file
@@ -382,33 +383,44 @@ class QLearner(object):
         path = self.saver.save(self.session, self.save_path)
         print("Model saved in path: %s" % path)
 
-    def test_model(self, start_date):
+    def test_model(self, test=False, start_date=None):
+        if test == False:
+            env = self.env
+        else:
+            env = self.test_env
+        start_date = start_date or env._start_date
+
         save_dict = {
             'power_bid': [],
             'price_bid': [],
             'soc': [],
             'power_cleared': [],
             'reward': [],
+            'date': []
         }
         done = False
-        obs = self.env.reset(start_date=start_date)
+        obs = env.reset(start_date=start_date)
+        save_dict['date'].append(env.date)
         save_dict['soc'].append(obs[0])
         save_dict['power_cleared'].append(obs[1])
         save_dict['power_bid'].append(0)
         save_dict['price_bid'].append(0)
         save_dict['reward'].append(0)
         while not done:
+            save_dict['date'].append(env.date)
             action = self.get_action_todo(obs)
-            power, cost = self.env.discrete_to_continuous_action(action)
+            power, cost = env.discrete_to_continuous_action(action)
             save_dict['power_bid'].append(power)
             save_dict['price_bid'].append(cost)
-            obs, reward, done, info = self.env.step(action)
+            obs, reward, done, info = env.step(action)
             save_dict['soc'].append(obs[0])
             save_dict['power_cleared'].append(obs[1])
             save_dict['reward'].append(reward)
+        import ipdb;ipdb.set_trace()
         return save_dict
 
     def get_action_todo(self, obs):
-        q_values = self.session.run(self.q_values, feed_dict={self.obs_t_ph: [obs]})
+        q_values = self.session.run(self.q_values,
+                                    feed_dict={self.obs_t_ph: [obs]})
         action = np.argmax(q_values[0])
         return action
