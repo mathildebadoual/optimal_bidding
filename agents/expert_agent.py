@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import os
 import logging
+import datetime
 
 # The difference between DQN and this expert agent is that it depends on the environment directly
 
@@ -40,12 +41,12 @@ class ExpertAgent(object):
         if not os.path.exists(self.price_prediction_file_path):
             logging.info('---- Create Prediction Prices ----')
             done = False
-            action = np.array([0, 0])
+            action = np.array([0, 100000])
             i = 0
             price_prediction_dict = {'time_step': [], 'values': []}
             while not done:
                 ob, reward, done, info_dict = self.market.step(action)
-                price_prediction_dict['values'].append(ob[0])
+                price_prediction_dict['values'].append(info_dict['price_cleared'])
                 price_prediction_dict['time_step'].append(info_dict['date'])
                 if i % 100 == 0 :
                     logging.info('----> Step %s' % (info_dict['date']))
@@ -80,7 +81,10 @@ class ExpertAgent(object):
     def planning(self, step):
         # solve optimization problem from actual time step for a certain horizon
         self.price_prediction_df['time_step'] = pd.to_datetime(self.price_prediction_df['time_step'])
-        values_planning_horizon = self.price_prediction_df[self.price_prediction_df['time_step'].dt.time >= step.time()]['values']
+
+        step = datetime.datetime.strptime(step.strftime("%Y-%m-%d %H:%M:%S.%f"), "%Y-%m-%d %H:%M:%S.%f")
+        values_planning_horizon = self.price_prediction_df[self.price_prediction_df['time_step'] >= step]['values']
+        
         self.price_predictions_interval.value = values_planning_horizon.values[:self.time_horizon]
         self.initial_soe.value = self.memory_dict['soe'][-1]
 
