@@ -4,9 +4,11 @@ import energym
 import numpy as np
 import pandas as pd
 import os
+import logging
 
 # The difference between DQN and this expert agent is that it depends on the environment directly
 
+logging.getLogger().setLevel(logging.INFO)
 
 class ExpertAgent(object):
     def __init__(self):
@@ -36,7 +38,7 @@ class ExpertAgent(object):
         # We run the all simulation without the battery (considering we are price take we do not influence the market).
         # This function needs to be called once and then we store the result in a pickle
         if not os.path.exists(self.price_prediction_file_path):
-            print('---- Create Prediction Prices ----')
+            logging.info('---- Create Prediction Prices ----')
             done = False
             action = np.array([0, 0])
             i = 0
@@ -46,13 +48,13 @@ class ExpertAgent(object):
                 price_prediction_dict['values'].append(ob[0])
                 price_prediction_dict['time_step'].append(info_dict['date'])
                 if i % 100 == 0 :
-                    print('----> Step %s' % (info_dict['date']))
+                    logging.info('----> Step %s' % (info_dict['date']))
                 i += 1
             price_prediction_df = pd.DataFrame.from_dict(price_prediction_dict)
             price_prediction_df.to_csv(self.price_prediction_file_path)
 
     def load_price_predictions(self):
-        print('---- Load Prediction Prices ----')
+        logging.info('---- Load Prediction Prices ----')
         price_prediction_df = pd.read_csv(self.price_prediction_file_path)
         return price_prediction_df
 
@@ -82,7 +84,9 @@ class ExpertAgent(object):
         self.price_predictions_interval.value = values_planning_horizon.values[:self.time_horizon]
         self.initial_soe.value = self.memory_dict['soe'][-1]
 
-        self.problem.solve()
+        logging.info('---- Solve Optimization ----')
+        self.problem.solve(solver=cvx.CVXOPT, verbose=False)
+        logging.info('---- Status: %s ----' % self.problem.status)
         planned_actions = self.planned_power.value
         return planned_actions
 
@@ -99,31 +103,16 @@ class ExpertAgent(object):
             self.memory_dict['price_bid'].append(self.price_predictions_interval.value[i])
             self.memory_dict['reward'].append(reward)
             self.memory_dict['time_step'].append(info_dict['date'])
+            self.memory_dict['done'].append(done)
+            self.memory_dict['power_bid'].append(action)
         return done
 
     def reset_memory_dict(self):
         self.memory_dict = {'soe': [0],
-                        'power_cleared': [],
-                        'price_bid': [],
-                        'reward': [],
-                        'done': [],
-                        'time_step': [],
+                        'power_cleared': [0],
+                        'price_bid': [0],
+                        'reward': [0],
+                        'done': [0],
+                        'time_step': [0],
+                        'power_bid': [0],
                         }
-
-
-if __name__ == '__main__':
-    expert = ExpertAgent()
-    start_date = expert.env._start_date
-    step = start_date
-    expert.reset_memory_dict()
-    done = False
-    print('---- Run Expert Policy ----')
-    while not done:
-        print(step)
-        planned_actions = expert.planning(step)
-        done = expert.running(planned_actions)
-        step += expert.env._delta_time
-    print(expert.memory_dict)
-
-
-

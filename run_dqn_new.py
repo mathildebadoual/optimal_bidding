@@ -76,8 +76,8 @@ def create_controller(env,
     return controller
 
 
-def test_model(controller, start_time_test):
-    controller.test_model(start_time_test)
+def test_model(controller):
+    controller.test_model()
 
 
 def get_available_gpus():
