@@ -85,7 +85,7 @@ class ExpertAgent(object):
         step = datetime.datetime.strptime(step.strftime("%Y-%m-%d %H:%M:%S.%f"), "%Y-%m-%d %H:%M:%S.%f")
         values_planning_horizon = self.price_prediction_df[self.price_prediction_df['time_step'] >= step]['values']
         
-        self.price_predictions_interval.value = values_planning_horizon.values[:self.time_horizon]
+        self.price_predictions_interval.value = np.resize(values_planning_horizon.values[:self.time_horizon], (self.time_horizon,))
         self.initial_soe.value = self.memory_dict['soe'][-1]
 
         logging.info('---- Solve Optimization ----')
@@ -98,9 +98,9 @@ class ExpertAgent(object):
         # run until time to re-plan, collect same outputs as the RL agent
         done = False
         for i in range(self.time_horizon):
-            if i > self.planning_frequency or done:
+            if i >= self.planning_frequency or done:
                 break
-            action = planned_actions[i]
+            action = [planned_actions[i], self.price_predictions_interval.value[i]]
             ob, reward, done, info_dict = self.env.step(action)
             self.memory_dict['soe'].append(ob[0])
             self.memory_dict['power_cleared'].append(ob[1])
@@ -108,7 +108,7 @@ class ExpertAgent(object):
             self.memory_dict['reward'].append(reward)
             self.memory_dict['time_step'].append(info_dict['date'])
             self.memory_dict['done'].append(done)
-            self.memory_dict['power_bid'].append(action)
+            self.memory_dict['power_bid'].append(planned_actions[i])
         return done
 
     def reset_memory_dict(self):
