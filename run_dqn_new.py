@@ -49,7 +49,8 @@ def create_controller(env,
 
     exploration_schedule = PiecewiseSchedule(
         [
-            (0, 1.0),
+            (10, 1.0),
+            (1000, 0.1),
             (5e4, 0.01),
             (num_iterations / 2, 0.01),
         ], outside_value=0.01
@@ -63,7 +64,7 @@ def create_controller(env,
         exploration=exploration_schedule,
         stopping_criterion=stopping_criterion,
         rew_file=rew_file,
-        replay_buffer_size=1000000,
+        replay_buffer_size=2000000,
         batch_size=32,
         gamma=0.95,
         learning_starts=500,
@@ -111,7 +112,7 @@ def main():
     start_time = [start_time.day,start_time.hour,
                   start_time.minute, start_time.second]
 
-    env = gym.make('energy_market_battery-v1')
+    env = gym.make('energy_market_battery-v0')
     # divide data in test and train
 
 
@@ -135,8 +136,8 @@ def main():
     else:
         controller.saver.restore(controller.session, '/tmp/model.ckpt')
         # FixMe: Ugly
-        controller.env._energy_market._gen_df = pd.read_pickle("data/gen_caiso_test.pkl")
-        controller.env._energy_market._dem_df = pd.read_pickle("data/dem_caiso_test.pkl")
+        controller.env._energy_market._gen_df = pd.read_pickle("data/gen_caiso.pkl")
+        controller.env._energy_market._dem_df = pd.read_pickle("data/dem_caiso.pkl")
 
     env.close()
 

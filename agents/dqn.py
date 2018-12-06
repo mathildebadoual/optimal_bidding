@@ -100,6 +100,11 @@ class QLearner(object):
         self.save_path = save_path
         self.q_func = q_func
 
+        self.mean_rewards_list = []
+        self.best_mean_rewards_list = []
+
+        self.loss_list = []
+
         ###############
         # BUILD MODEL #
         ###############
@@ -206,6 +211,8 @@ class QLearner(object):
 
         self.start_time = None
         self.t = 0
+
+        self.saver = tf.train.Saver()
 
     def stopping_criterion_met(self):
         return self.stopping_criterion is not None and self.stopping_criterion(self.env, self.t)
@@ -340,6 +347,7 @@ class QLearner(object):
             if self.num_param_updates % self.target_update_freq == 0:
                 self.session.run(self.update_target_fn)
                 print("loss at time step {}: ".format(self.t), loss)
+                self.loss_list.append(loss)
 
         self.t += 1
 
@@ -368,18 +376,13 @@ class QLearner(object):
 
             sys.stdout.flush()
 
-            with open(self.rew_file, 'ab') as f:
-                pickle.dump(
-                    {"mean_reward": self.mean_episode_reward,
-                     "best_mean_reward": self.best_mean_episode_reward,
-                     "timestep": self.t},
-                    f, pickle.HIGHEST_PROTOCOL)
+            self.mean_rewards_list.append(self.mean_episode_reward)
+            self.best_mean_rewards_list.append(self.best_mean_episode_reward)
 
+            with open(self.rew_file, 'wb') as f:
+                pickle.dump((self.mean_rewards_list, self.best_mean_rewards_list, self.t, self.loss_list), f, pickle.HIGHEST_PROTOCOL)
 
     def save_model(self):
-        if not self.model_initialized:
-            self.saver = tf.train.Saver()
-            print('initialized')
         path = self.saver.save(self.session, self.save_path)
         print("Model saved in path: %s" % path)
 
@@ -396,27 +399,32 @@ class QLearner(object):
             'soc': [],
             'power_cleared': [],
             'reward': [],
-            'date': []
+            'date': [],
+            'price_cleared': [],
+            'ref_price': [],
         }
         done = False
         obs = env.reset(start_date=start_date)
-        save_dict['date'].append(env.date)
-        save_dict['soc'].append(obs[0])
-        save_dict['power_cleared'].append(obs[1])
+        save_dict['date'].append(env._date)
+        save_dict['soc'].append(obs[1])
+        save_dict['power_cleared'].append(obs[0])
         save_dict['power_bid'].append(0)
         save_dict['price_bid'].append(0)
         save_dict['reward'].append(0)
+        save_dict['price_cleared'].append(0)
+        save_dict['ref_price'].append(0)
         while not done:
-            save_dict['date'].append(env.date)
+            save_dict['date'].append(env._date)
             action = self.get_action_todo(obs)
             power, cost = env.discrete_to_continuous_action(action)
             save_dict['power_bid'].append(power)
             save_dict['price_bid'].append(cost)
-            obs, reward, done, info = env.step(action)
-            save_dict['soc'].append(obs[0])
-            save_dict['power_cleared'].append(obs[1])
+            obs, reward, done, info = env.step(0)
+            save_dict['soc'].append(obs[1])
+            save_dict['power_cleared'].append(obs[0])
             save_dict['reward'].append(reward)
-        import ipdb;ipdb.set_trace()
+            save_dict['price_cleared'].append(info['price_cleared'])
+            save_dict['ref_price'].append(info['ref_price'])
         return save_dict
 
     def get_action_todo(self, obs):
