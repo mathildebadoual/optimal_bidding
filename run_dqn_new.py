@@ -29,7 +29,7 @@ def create_controller(env,
     # This is just a rough estimate
     num_iterations = float(num_timesteps) / 4.0
 
-    lr_multiplier = 1.0
+    lr_multiplier = 10.0
     lr_schedule = PiecewiseSchedule([
                                          (0,                   1e-4 * lr_multiplier),
                                          (num_iterations / 10, 1e-4 * lr_multiplier),
@@ -38,20 +38,19 @@ def create_controller(env,
                                     outside_value=5e-5 * lr_multiplier)
     optimizer = dqn.OptimizerSpec(
         constructor=tf.train.AdamOptimizer,
-        kwargs=dict(epsilon=1e-4),
+        kwargs=dict(epsilon=1e-3),
         lr_schedule=lr_schedule
     )
 
     def stopping_criterion(env, t):
         # notice that here t is the number of steps of the wrapped env,
         # which is different from the number of steps in the underlying env
-        return t > 100000
+        return t > num_timesteps
 
     exploration_schedule = PiecewiseSchedule(
         [
-            (10, 1.0),
-            (1000, 0.1),
-            (5e4, 0.01),
+            (0, 1.0),
+            (5e4, 0.1),
             (num_iterations / 2, 0.01),
         ], outside_value=0.01
     )
@@ -64,13 +63,13 @@ def create_controller(env,
         exploration=exploration_schedule,
         stopping_criterion=stopping_criterion,
         rew_file=rew_file,
-        replay_buffer_size=2000000,
+        replay_buffer_size=1000000,
         batch_size=32,
         gamma=0.95,
-        learning_starts=500,
+        learning_starts=5000,
         learning_freq=4,
-        frame_history_len=4,
-        target_update_freq=1000,
+        frame_history_len=24,
+        target_update_freq=500,
         grad_norm_clipping=10,
         double_q=True,
         save_path=save_path,

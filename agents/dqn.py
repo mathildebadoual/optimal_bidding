@@ -30,7 +30,8 @@ class QLearner(object):
             rew_file=None,
             double_q=True,
             save_path='',
-            lander=False):
+            lander=False,
+            with_expert=False):
         """Run Deep Q-learning algorithm.
 
         You can specify your own convnet using q_func.
@@ -99,6 +100,7 @@ class QLearner(object):
         self.episode_rewards = []
         self.save_path = save_path
         self.q_func = q_func
+        self.with_expert = with_expert
 
         self.mean_rewards_list = []
         self.best_mean_rewards_list = []
@@ -402,6 +404,8 @@ class QLearner(object):
             'date': [],
             'price_cleared': [],
             'ref_price': [],
+            'power_dqn': [],
+            'cost_dqn': [],
         }
         done = False
         obs = env.reset(start_date=start_date)
@@ -413,13 +417,22 @@ class QLearner(object):
         save_dict['reward'].append(0)
         save_dict['price_cleared'].append(0)
         save_dict['ref_price'].append(0)
+        save_dict['power_dqn'].append(0)
+        save_dict['cost_dqn'].append(0)
         while not done:
             save_dict['date'].append(env._date)
             action = self.get_action_todo(obs)
-            power, cost = env.discrete_to_continuous_action(action)
+            obs, reward, done, info = env.step(action)
+            if self.with_expert:
+                power, cost = info['action_tot']
+                power_dqn, cost_dqn = env.discrete_to_continuous_action(action)
+                save_dict['power_dqn'].append(power_dqn)
+                save_dict['cost_dqn'].append(cost_dqn)
+            else: 
+                power, cost = env.discrete_to_continuous_action(action)
             save_dict['power_bid'].append(power)
             save_dict['price_bid'].append(cost)
-            obs, reward, done, info = env.step(0)
+            
             save_dict['soc'].append(obs[1])
             save_dict['power_cleared'].append(obs[0])
             save_dict['reward'].append(reward)

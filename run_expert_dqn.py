@@ -29,7 +29,8 @@ def create_controller(env,
           session,
           num_timesteps,
           save_path,
-          rew_file):
+          rew_file,
+          with_expert):
 
     # This is just a rough estimate
     num_iterations = float(num_timesteps) / 4.0
@@ -50,7 +51,7 @@ def create_controller(env,
     def stopping_criterion(env, t):
         # notice that here t is the number of steps of the wrapped env,
         # which is different from the number of steps in the underlying env
-        return t > 100000
+        return t > num_timesteps
 
     exploration_schedule = PiecewiseSchedule(
         [
@@ -78,6 +79,7 @@ def create_controller(env,
         grad_norm_clipping=10,
         double_q=True,
         save_path=save_path,
+        with_expert=with_expert
     )
 
     return controller
@@ -123,7 +125,7 @@ def main():
     # initialize
     session = get_session()
 
-    controller = create_controller(env, session, num_timesteps=1e8, save_path='/tmp/model.ckpt', rew_file=args.rew_file)
+    controller = create_controller(env, session, num_timesteps=1e8, save_path='/tmp/model_2.ckpt', rew_file=args.rew_file, with_expert=True)
 
     # train controller
     if not args.test:
@@ -138,10 +140,10 @@ def main():
         except KeyboardInterrupt:
             print("KeyboardInterrupt error caught")
     else:
-        controller.saver.restore(controller.session, '/tmp/model.ckpt')
+        controller.saver.restore(controller.session, '/tmp/model_2.ckpt')
         # FixMe: Ugly
-        controller.env._energy_market._gen_df = pd.read_pickle("data/gen_caiso_test.pkl")
-        controller.env._energy_market._dem_df = pd.read_pickle("data/dem_caiso_test.pkl")
+        controller.env._energy_market._gen_df = pd.read_pickle("data/gen_caiso.pkl")
+        controller.env._energy_market._dem_df = pd.read_pickle("data/dem_caiso.pkl")
 
     env.close()
 

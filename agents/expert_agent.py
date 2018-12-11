@@ -24,7 +24,7 @@ class ExpertAgent(object):
         self.data_path = 'data'
         self.price_prediction_file_path = os.path.join(self.data_path, "price_prediction.csv")
         self.get_prediction_cleared_prices()
-        self.price_prediction_df = self.load_price_predictions()
+        self.price_prediction_df = self.load_price_predictions().dropna()
 
         # parameters for the online controller
         self.reset_memory_dict()
@@ -71,7 +71,7 @@ class ExpertAgent(object):
 
         constraints = [self.soe[0] == self.initial_soe]
         for i in range(self.time_horizon-1):
-            constraints += [self.soe[i+1] == self.soe[i] + self.battery_efficiency * self.planned_power[i]]
+            constraints += [self.soe[i+1] == self.soe[i] - self.battery_efficiency * self.planned_power[i]]
 
         constraints += [self.soe <= self.max_soe] + [self.min_soe <= self.soe]
         constraints += [self.planned_power <= self.max_power] + [self.min_power <= self.planned_power]
@@ -88,9 +88,9 @@ class ExpertAgent(object):
         self.price_predictions_interval.value = np.resize(values_planning_horizon.values[:self.time_horizon], (self.time_horizon,))
         self.initial_soe.value = self.memory_dict['soe'][-1]
 
-        logging.info('---- Solve Optimization ----')
-        self.problem.solve(solver=cvx.CVXOPT, verbose=False)
-        logging.info('---- Status: %s ----' % self.problem.status)
+        #logging.info('---- Solve Optimization ----')
+        self.problem.solve(verbose=False)
+        #logging.info('---- Status: %s ----' % self.problem.status)
         planned_actions = self.planned_power.value
         return planned_actions
 
@@ -102,8 +102,8 @@ class ExpertAgent(object):
                 break
             action = [planned_actions[i], self.price_predictions_interval.value[i]]
             ob, reward, done, info_dict = self.env.step(action)
-            self.memory_dict['soe'].append(ob[0])
-            self.memory_dict['power_cleared'].append(ob[1])
+            self.memory_dict['soe'].append(ob[1])
+            self.memory_dict['power_cleared'].append(ob[0])
             self.memory_dict['price_bid'].append(self.price_predictions_interval.value[i])
             self.memory_dict['reward'].append(reward)
             self.memory_dict['time_step'].append(info_dict['date'])
@@ -112,8 +112,9 @@ class ExpertAgent(object):
         return done
 
     def reset_memory_dict(self):
-        self.memory_dict = {'soe': [0],
-                        'power_cleared': [0],
+        ob = self.env.reset()
+        self.memory_dict = {'soe': [ob[1]],
+                        'power_cleared': [ob[2]],
                         'price_bid': [0],
                         'reward': [0],
                         'done': [0],
