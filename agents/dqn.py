@@ -259,7 +259,8 @@ class QLearner(object):
 
 
         # Chose the next action to make
-        action = self.epsilon_greedy_policy(recent_observations)
+        #action = self.epsilon_greedy_policy(recent_observations)
+        action = self.shielded_epsilon_greedy_policy(recent_observations)
 
         # Perform the action
         obs, reward, done, info = self.env.step(action)
@@ -282,6 +283,25 @@ class QLearner(object):
             q_values = self.session.run(self.q_values,
                                         feed_dict={self.obs_t_ph: [recent_observations]})
             action = np.argmax(q_values[0])
+        return action
+
+    def shielded_epsilon_greedy_policy(self, recent_observations):
+        """
+        Perform epsilon greedy policy, with post-posed shielding.
+        :return:
+        """
+        action_safe_flag = False
+        if np.random.random() < self.exploration.value(self.t) or not self.model_initialized:
+            while not action_safe_flag:
+                action = self.env.action_space.sample()
+                action_safe_flag = self.env.is_safe(action)
+        else:
+            q_values = self.session.run(self.q_values,
+                                        feed_dict={self.obs_t_ph: [recent_observations]})
+            sorted_q_values_indices = np.argsort(q_values[0])[::-1]
+            for action in sorted_q_values_indices:
+                if self.env.is_safe(action):
+                    break
         return action
 
     def update_model(self):
