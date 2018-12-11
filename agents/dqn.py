@@ -259,7 +259,6 @@ class QLearner(object):
 
 
         # Chose the next action to make
-        #action = self.epsilon_greedy_policy(recent_observations)
         action = self.shielded_epsilon_greedy_policy(recent_observations)
 
         # Perform the action

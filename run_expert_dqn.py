@@ -15,6 +15,10 @@ import pandas as pd
 import agents.dqn as dqn
 from agents.dqn_utils import *
 
+import warnings
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
+
 
 def model(input, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
@@ -119,22 +123,24 @@ def main():
                   start_time.minute, start_time.second]
 
     env = gym.make('energy_market_battery-v1')
-    # divide data in test and train
-
 
     # initialize
     session = get_session()
 
-    controller = create_controller(env, session, num_timesteps=1e8, save_path='/tmp/model_2.ckpt', rew_file=args.rew_file, with_expert=True)
+    controller = create_controller(
+    	env, 
+    	session, 
+    	num_timesteps=1e8, 
+    	save_path='/tmp/model_2.ckpt', 
+    	rew_file=args.rew_file, 
+    	with_expert=True
+    	)
 
     # train controller
     if not args.test:
         try:
             while not controller.stopping_criterion_met():
                     controller.step_env()
-                    # at this point, the environment should have been advanced one step (and
-                    # reset if done was true), and self.last_obs should point to the new latest
-                    # observation
                     controller.update_model()
                     controller.log_progress()
         except KeyboardInterrupt:
