@@ -260,6 +260,8 @@ class QLearner(object):
 
         # Chose the next action to make
         action = self.shielded_epsilon_greedy_policy(recent_observations)
+        #action = self.epsilon_greedy_policy(recent_observations)
+
 
         # Perform the action
         obs, reward, done, info = self.env.step(action)
@@ -289,8 +291,8 @@ class QLearner(object):
         Perform epsilon greedy policy, with post-posed shielding.
         :return:
         """
-        action_safe_flag = False
         if np.random.random() < self.exploration.value(self.t) or not self.model_initialized:
+            action_safe_flag = False
             while not action_safe_flag:
                 action = self.env.action_space.sample()
                 action_safe_flag = self.env.is_safe(action)

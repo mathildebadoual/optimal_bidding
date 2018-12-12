@@ -11,12 +11,38 @@ import agents.dqn as dqn
 from agents.dqn_utils import *
 
 
-def model(input, num_actions, scope, reuse=False):
+def model(inpt, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
-        out = input
+        out = inpt
         with tf.variable_scope("action_value"):
             out = tf.contrib.layers.fully_connected(out, num_outputs=32,         activation_fn=tf.nn.relu)
             out = tf.contrib.layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
+        return out
+
+
+def rnn_model(inpt, num_actions, scope, reuse=False):
+    with tf.variable_scope(scope, reuse=reuse):
+        r_inpt = tf.reshape(inpt, shape=(None, 24, 2))  # batch_size * ob_size * len_frame_history
+
+        # dense layer
+        # r_inpt size: BATCH_SIZE x HISTORY_LENGTH x 64
+        r_inpt = tf.layers.dense(r_inpt, 16, activation=tf.nn.leaky_relu, use_bias=True)
+
+        # RNN
+        gru_cell = tf.nn.rnn_cell.GRUCell(32, activation=tf.tanh, reuse=None)
+        history = 24
+        cell_outputs = []
+        h = gru_cell.zero_state(tf.shape(r_inpt)[0])
+        for i in range(history):
+            cell_output, h = gru_cell(r_inpt[:, i, :], h, scope=scope)
+            cell_outputs.append(cell_output)
+
+        cell_outputs = tf.transpose(tf.stack(cell_outputs), perm=[1, 0, 2])
+
+        # Output layer
+        flatten_cell_outputs = tf.layers.flatten(cell_outputs)
+        out = tf.layers.dense(flatten_cell_outputs, units=num_actions, activation=None, use_bias=False)
+
         return out
 
 
@@ -57,7 +83,7 @@ def create_controller(env,
 
     controller = dqn.QLearner(
         env=env,
-        q_func=model,
+        q_func=rnn_model,
         optimizer_spec=optimizer,
         session=session,
         exploration=exploration_schedule,
