@@ -11,6 +11,9 @@ import agents.dqn as dqn
 from agents.dqn_utils import *
 
 
+HISTORY_LENGTH = 4
+
+
 def model(inpt, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
@@ -22,7 +25,7 @@ def model(inpt, num_actions, scope, reuse=False):
 
 def rnn_model(inpt, num_actions, scope, reuse=False):
     with tf.variable_scope(scope, reuse=reuse):
-        r_inpt = tf.reshape(inpt, shape=(-1, 24, 3))  # BATCH_SIZE * HISTORY_LENGTH * ob_size
+        r_inpt = tf.reshape(inpt, shape=(-1, HISTORY_LENGTH, 3))  # BATCH_SIZE * HISTORY_LENGTH * ob_size
 
         # dense layer
         # r_inpt size: BATCH_SIZE x HISTORY_LENGTH x 64
@@ -30,7 +33,7 @@ def rnn_model(inpt, num_actions, scope, reuse=False):
 
         # RNN
         gru_cell = tf.nn.rnn_cell.GRUCell(32, activation=tf.tanh, reuse=None)
-        history = 24
+        history = HISTORY_LENGTH
         cell_outputs = []
         h = gru_cell.zero_state(tf.shape(r_inpt)[0], dtype=tf.float32)
         for i in range(history):
@@ -94,7 +97,7 @@ def create_controller(env,
         gamma=0.95,
         learning_starts=5000,
         learning_freq=4,
-        frame_history_len=4,
+        frame_history_len=HISTORY_LENGTH,
         target_update_freq=500,
         grad_norm_clipping=10,
         double_q=True,
@@ -166,7 +169,7 @@ def main():
     env.close()
 
     # test controller
-    save_dict = test_model(controller, frame_history_len=4)
+    save_dict = test_model(controller, frame_history_len=HISTORY_LENGTH)
 
     # save result
     with open('results/{}_{}_{}_{}_{}.pkl'.format(*start_time, args.rew_file), 'wb') as pickle_file:

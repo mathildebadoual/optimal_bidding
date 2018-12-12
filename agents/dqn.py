@@ -397,8 +397,8 @@ class QLearner(object):
 
             # YOUR CODE HERE
             obs_batch, act_batch, rew_batch, next_obs_batch, done_mask = self.replay_buffer.sample(self.batch_size)
-            print(obs_batch.shape)
-            print(self.obs_t_ph.shape)
+            #print(obs_batch.shape)
+            #print(self.obs_t_ph.shape)
             if not self.model_initialized:
                 initialize_interdependent_variables(self.session, tf.global_variables(), {
                     self.obs_t_ph: obs_batch,
