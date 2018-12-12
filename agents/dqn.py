@@ -431,7 +431,7 @@ class QLearner(object):
         }
         done = False
         obs = env.reset(start_date=start_date)
-        list_obs = [np.zeros((3,), dtype=np.float32)] * 23 + [obs]
+        list_obs = [np.zeros((3,), dtype=np.float32)] * 3 + [obs]
         save_dict['date'].append(env._date)
         save_dict['soc'].append(obs[1])
         save_dict['power_cleared'].append(obs[0])
@@ -444,7 +444,8 @@ class QLearner(object):
         save_dict['cost_dqn'].append(0)
         while not done:
             save_dict['date'].append(env._date)
-            action = self.get_action_todo(list_obs)
+            list_obs_lin = np.concatenate(list_obs)
+            action = self.get_action_todo(list_obs_lin)
             obs, reward, done, info = env.step(action)
 
             # append most recent observation, suppress oldest observation
