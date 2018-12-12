@@ -111,21 +111,21 @@ class QLearner(object):
         # BUILD MODEL #
         ###############
 
-        # This means we are running on low-dimensional observations (e.g. RAM)
-        input_shape = self.env.observation_space.shape
+        input_shape = list(self.env.observation_space.shape)
+        input_shape[-1] *= frame_history_len
         self.num_actions = self.env.action_space.n
 
         # set up placeholders
         # placeholder for current observation (or state)
         self.obs_t_ph = tf.placeholder(
-            tf.float32, [None] + list(input_shape))
+            tf.float32, [None] + input_shape)
         # placeholder for current action
         self.act_t_ph = tf.placeholder(tf.int32, [None])
         # placeholder for current reward
         self.rew_t_ph = tf.placeholder(tf.float32, [None])
         # placeholder for next observation (or state)
         self.obs_tp1_ph = tf.placeholder(
-            tf.float32, [None] + list(input_shape))
+            tf.float32, [None] + input_shape)
         # placeholder for end of episode mask
         # this value is 1 if the next state corresponds to the end of an episode,
         # in which case there is no Q-value at the next state; at the end of an
@@ -260,6 +260,8 @@ class QLearner(object):
 
         # Chose the next action to make
         action = self.shielded_epsilon_greedy_policy(recent_observations)
+        #action = self.epsilon_greedy_policy(recent_observations)
+
 
         # Perform the action
         obs, reward, done, info = self.env.step(action)
@@ -289,8 +291,8 @@ class QLearner(object):
         Perform epsilon greedy policy, with post-posed shielding.
         :return:
         """
-        action_safe_flag = False
         if np.random.random() < self.exploration.value(self.t) or not self.model_initialized:
+            action_safe_flag = False
             while not action_safe_flag:
                 action = self.env.action_space.sample()
                 action_safe_flag = self.env.is_safe(action)
@@ -359,7 +361,7 @@ class QLearner(object):
             loss, _ = self.session.run((self.total_error, self.train_fn), feed_dict={
                 self.obs_t_ph: obs_batch,
                 self.act_t_ph: act_batch,
-                self.rew_t_ph: rew_batch/10**7,
+                self.rew_t_ph: rew_batch/10**4,
                 self.obs_tp1_ph: next_obs_batch,
                 self.done_mask_ph: done_mask,
                 self.learning_rate: self.optimizer_spec.lr_schedule.value(self.t)
@@ -428,6 +430,7 @@ class QLearner(object):
         }
         done = False
         obs = env.reset(start_date=start_date)
+        list_obs = [np.zeros((3,), dtype=np.float32)] * 23 + [obs]
         save_dict['date'].append(env._date)
         save_dict['soc'].append(obs[1])
         save_dict['power_cleared'].append(obs[0])
@@ -440,8 +443,14 @@ class QLearner(object):
         save_dict['cost_dqn'].append(0)
         while not done:
             save_dict['date'].append(env._date)
-            action = self.get_action_todo(obs)
+            action = self.get_action_todo(list_obs)
             obs, reward, done, info = env.step(action)
+
+            # append most recent observation, suppress oldest observation
+            # (it's important to respect the same order as in the training)
+            list_obs.append(obs)
+            list_obs[0:1] = []
+
             if self.with_expert:
                 power, cost = info['action_tot']
                 power_dqn, cost_dqn = env.discrete_to_continuous_action(action)
@@ -459,8 +468,12 @@ class QLearner(object):
             save_dict['ref_price'].append(info['ref_price'])
         return save_dict
 
-    def get_action_todo(self, obs):
+    def get_action_todo(self, list_obs):
+        """
+        :param list_obs: list or numpy array of size (ob_size * history_length)
+        :return: int
+        """
         q_values = self.session.run(self.q_values,
-                                    feed_dict={self.obs_t_ph: [obs]})
+                                    feed_dict={self.obs_t_ph: [list_obs]})
         action = np.argmax(q_values[0])
         return action
