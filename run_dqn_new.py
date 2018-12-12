@@ -83,7 +83,7 @@ def create_controller(env,
 
     controller = dqn.QLearner(
         env=env,
-        q_func=rnn_model,
+        q_func=model,
         optimizer_spec=optimizer,
         session=session,
         exploration=exploration_schedule,
