@@ -6,3 +6,4 @@ tensorflow
 cvxpy
 matplotlib
 pyiso
+tensorflow
