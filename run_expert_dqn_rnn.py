@@ -20,13 +20,28 @@ warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
 
-def model(input, num_actions, scope, reuse=False):
-    with tf.variable_scope(scope, reuse=reuse):
-        out = input
-        with tf.variable_scope("action_value"):
-            out = tf.contrib.layers.fully_connected(out, num_outputs=32,         activation_fn=tf.nn.relu)
-            out = tf.contrib.layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
-        return out
+def model(x, output_size, n_layers):
+    i = 0
+    for i in range(n_layers):
+        x = tf.layers.dense(inputs=x, units=64, activation=tf.nn.relu, name='fc{}'.format(i))
+    x = tf.layers.dense(inputs=x, units=output_size, activation=None, name='fc{}'.format(i + 1))
+    return x
+
+
+def model_rnn(x, h, output_size, n_layers):
+    x_out = model(x, output_size, n_layers)
+    cell = tf.contrib.rnn.GRUCell(output_size)
+    x_next, h_next = tf.nn.dynamic_rnn(cell, x_out, initial_state=h, dtype=tf.float32)
+    return x_next[:, -1, :], h_next
+
+
+def build_policy(x, h, output_size, scope, n_layers, gru_size):
+    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+        x, h = model_rnn(x, h, gru_size, n_layers)
+        x = tf.layers.dense(x, output_size, activation=None,
+                            kernel_initializer=tf.initializers.truncated_normal(mean=0.0, stddev=0.01),
+                            bias_initializer=tf.zeros_initializer(), name='decoder')
+    return x, h
 
 
 def create_controller(env,
@@ -42,7 +57,7 @@ def create_controller(env,
     lr_multiplier = 1.0
     lr_schedule = PiecewiseSchedule([
                                          (0,                   1e-4 * lr_multiplier),
-                                         (num_iterations / 10, 1e-5 * lr_multiplier),
+                                         (num_iterations / 10, 1e-4 * lr_multiplier),
                                          (num_iterations / 2,  5e-5 * lr_multiplier),
                                     ],
                                     outside_value=5e-5 * lr_multiplier)
@@ -67,7 +82,7 @@ def create_controller(env,
 
     controller = dqn.QLearner(
         env=env,
-        q_func=model,
+        q_func=build_policy,
         optimizer_spec=optimizer,
         session=session,
         exploration=exploration_schedule,
@@ -78,12 +93,13 @@ def create_controller(env,
         gamma=0.95,
         learning_starts=500,
         learning_freq=4,
-        frame_history_len=4,
+        frame_history_len=10,
         target_update_freq=1000,
         grad_norm_clipping=10,
         double_q=True,
         save_path=save_path,
-        with_expert=with_expert
+        with_expert=with_expert,
+        with_rnn=True,
     )
 
     return controller

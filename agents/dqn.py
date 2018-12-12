@@ -3,6 +3,7 @@ import time
 import pickle
 import sys
 import gym.spaces
+import numpy as np
 import tensorflow as tf
 from collections import namedtuple
 from agents.dqn_utils import *
@@ -31,7 +32,8 @@ class QLearner(object):
             double_q=True,
             save_path='',
             lander=False,
-            with_expert=False):
+            with_expert=False,
+            with_rnn=False):
         """Run Deep Q-learning algorithm.
 
         You can specify your own convnet using q_func.
@@ -101,6 +103,7 @@ class QLearner(object):
         self.save_path = save_path
         self.q_func = q_func
         self.with_expert = with_expert
+        self.with_rnn = with_rnn
 
         self.mean_rewards_list = []
         self.best_mean_rewards_list = []
@@ -118,15 +121,26 @@ class QLearner(object):
 
         # set up placeholders
         # placeholder for current observation (or state)
-        self.obs_t_ph = tf.placeholder(
-            tf.float32, [None] + input_shape)
+
+        if self.with_rnn:
+            self.obs_t_ph = tf.placeholder(
+                tf.float32, [None] + list(input_shape) + list((frame_history_len,)))
+        else:
+            self.obs_t_ph = tf.placeholder(
+                tf.float32, [None] + list(input_shape))
+
         # placeholder for current action
         self.act_t_ph = tf.placeholder(tf.int32, [None])
         # placeholder for current reward
         self.rew_t_ph = tf.placeholder(tf.float32, [None])
         # placeholder for next observation (or state)
-        self.obs_tp1_ph = tf.placeholder(
-            tf.float32, [None] + input_shape)
+
+        if self.with_rnn:
+            self.obs_tp1_ph = tf.placeholder(
+                tf.float32, [None] + list(input_shape) + list((frame_history_len,)))
+        else:
+            self.obs_tp1_ph = tf.placeholder(
+                tf.float32, [None] + list(input_shape))
         # placeholder for end of episode mask
         # this value is 1 if the next state corresponds to the end of an episode,
         # in which case there is no Q-value at the next state; at the end of an
@@ -159,14 +173,26 @@ class QLearner(object):
 
         # YOUR CODE HERE
         # Actual Q values
-        self.q_values = q_func(obs_t_float, self.num_actions, scope="q_func", reuse=False)
+        self.gru_size = 32
+        self.sy_hidden = tf.placeholder(shape=[None, self.gru_size], name='hidden', dtype=tf.float32)
+
+        if self.with_rnn:
+            self.q_values, _ = q_func(obs_t_float, self.sy_hidden, self.num_actions, scope="q_func", n_layers=1, gru_size=self.gru_size)
+        else:
+            self.q_values = q_func(obs_t_float, self.num_actions, scope="q_func", reuse=False)
         mask = tf.one_hot(self.act_t_ph, depth=self.num_actions, dtype=tf.bool, on_value=True, off_value=False)
         taken_q_values = tf.boolean_mask(self.q_values, mask)
 
         # Target Q values
-        target_q_values = q_func(obs_tp1_float, self.num_actions, scope="target_q_func", reuse=False)
+        if self.with_rnn:
+            target_q_values, _ = q_func(obs_tp1_float, self.sy_hidden, self.num_actions, scope="target_q_func", n_layers=1, gru_size=self.gru_size)
+        else:
+            target_q_values = q_func(obs_tp1_float, self.num_actions, scope="target_q_func", reuse=False)
         if double_q:
-            q_values_next = q_func(obs_tp1_float, self.num_actions, scope="q_func", reuse=True)
+            if self.with_rnn:
+                q_values_next, _ = q_func(obs_tp1_float, self.sy_hidden, self.num_actions, scope="q_func", n_layers=1, gru_size=self.gru_size)
+            else:
+                q_values_next = q_func(obs_tp1_float, self.num_actions, scope="q_func", reuse=True)
             argmax_q_values = tf.argmax(q_values_next, axis=1)
             mask = tf.one_hot(argmax_q_values, depth=self.num_actions, dtype=tf.bool, on_value=True, off_value=False)
             max_q_values = tf.boolean_mask(target_q_values, mask)
@@ -255,12 +281,15 @@ class QLearner(object):
 
         # YOUR CODE HERE
         # Get frame context
+        # if self.last_obs.shape == (3,) and self.with_rnn:
+        #     self.previous_obs = self.last_obs
+        #     self.last_obs = np.array([self.last_obs, self.last_obs])
+
         frame_idx = self.replay_buffer.store_frame(self.last_obs)
         recent_observations = self.replay_buffer.encode_recent_observation()
 
-
         # Chose the next action to make
-        
+
         # action = self.shielded_epsilon_greedy_policy(recent_observations)
         action = self.epsilon_greedy_policy(recent_observations)
 
@@ -273,7 +302,12 @@ class QLearner(object):
         self.replay_buffer.store_effect(frame_idx, action, reward, done)
         self.episode_rewards.append(reward)
 
+        # if self.with_rnn:
+        #     self.last_obs = np.array([self.previous_obs, obs])
+        #     self.previous_obs = obs
+        # else:
         self.last_obs = obs
+
 
     def epsilon_greedy_policy(self, recent_observations):
         """
@@ -283,8 +317,14 @@ class QLearner(object):
         if np.random.random() < self.exploration.value(self.t) or not self.model_initialized:
             action = self.env.action_space.sample()
         else:
-            q_values = self.session.run(self.q_values,
-                                        feed_dict={self.obs_t_ph: [recent_observations]})
+            if self.with_rnn:
+                hidden = np.zeros((1, self.gru_size), dtype=np.float32)
+                q_values = self.session.run(self.q_values,
+                                        feed_dict={self.obs_t_ph: [recent_observations],
+                                                   self.sy_hidden: hidden})
+            else:
+                q_values = self.session.run(self.q_values,
+                                            feed_dict={self.obs_t_ph: [recent_observations]})
             action = np.argmax(q_values[0])
         return action
 
@@ -299,8 +339,14 @@ class QLearner(object):
                 action = self.env.action_space.sample()
                 action_safe_flag = self.env.is_safe(action)
         else:
-            q_values = self.session.run(self.q_values,
-                                        feed_dict={self.obs_t_ph: [recent_observations]})
+            if self.with_rnn:
+                hidden = np.zeros((1, self.gru_size), dtype=np.float32)
+                q_values = self.session.run(self.q_values,
+                                        feed_dict={self.obs_t_ph: [recent_observations],
+                                                   self.sy_hidden: hidden})
+            else:
+                q_values = self.session.run(self.q_values,
+                                            feed_dict={self.obs_t_ph: [recent_observations]})
             sorted_q_values_indices = np.argsort(q_values[0])[::-1]
             for action in sorted_q_values_indices:
                 if self.env.is_safe(action):
@@ -351,7 +397,8 @@ class QLearner(object):
 
             # YOUR CODE HERE
             obs_batch, act_batch, rew_batch, next_obs_batch, done_mask = self.replay_buffer.sample(self.batch_size)
-
+            print(obs_batch.shape)
+            print(self.obs_t_ph.shape)
             if not self.model_initialized:
                 initialize_interdependent_variables(self.session, tf.global_variables(), {
                     self.obs_t_ph: obs_batch,
@@ -433,7 +480,9 @@ class QLearner(object):
         }
         done = False
         obs = env.reset(start_date=start_date)
+
         list_obs = [np.zeros((3,), dtype=np.float32)] * (self.frame_history_len - 1) + [obs]
+
         save_dict['date'].append(env._date)
         save_dict['soc'].append(obs[1])
         save_dict['power_cleared'].append(obs[0])
@@ -472,12 +521,15 @@ class QLearner(object):
             save_dict['ref_price'].append(info['ref_price'])
         return save_dict
 
-    def get_action_todo(self, list_obs):
-        """
-        :param list_obs: list or numpy array of size (ob_size * history_length)
-        :return: int
-        """
-        q_values = self.session.run(self.q_values,
-                                    feed_dict={self.obs_t_ph: np.reshape([list_obs], [1, -1])})
+
+    def get_action_todo(self, obs):
+        hidden = np.zeros((1, self.gru_size), dtype=np.float32)
+        if self.with_rnn:
+            q_values = self.session.run(self.q_values,
+                                    feed_dict={self.obs_t_ph: obs,
+                                               self.sy_hidden: hidden})
+        else:
+            q_values = self.session.run(self.q_values,
+                                    feed_dict={self.obs_t_ph: obs})
         action = np.argmax(q_values[0])
         return action
