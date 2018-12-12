@@ -410,7 +410,7 @@ class QLearner(object):
         path = self.saver.save(self.session, self.save_path)
         print("Model saved in path: %s" % path)
 
-    def test_model(self, test=False, start_date=None):
+    def test_model(self, frame_history_len, test=False, start_date=None):
         if test == False:
             env = self.env
         else:
@@ -431,7 +431,11 @@ class QLearner(object):
         }
         done = False
         obs = env.reset(start_date=start_date)
-        list_obs = [np.zeros((3,), dtype=np.float32)] * 23 + [obs]
+<<<<<<< HEAD
+        list_obs = [np.zeros((3,), dtype=np.float32)] * 3 + [obs]
+=======
+        list_obs = [np.zeros((3,), dtype=np.float32)] * (frame_history_len - 1) + [obs]
+>>>>>>> 25194af8b3e6023870189d58cf9eb716619022ca
         save_dict['date'].append(env._date)
         save_dict['soc'].append(obs[1])
         save_dict['power_cleared'].append(obs[0])
@@ -444,7 +448,8 @@ class QLearner(object):
         save_dict['cost_dqn'].append(0)
         while not done:
             save_dict['date'].append(env._date)
-            action = self.get_action_todo(list_obs)
+            list_obs_lin = np.concatenate(list_obs)
+            action = self.get_action_todo(list_obs_lin)
             obs, reward, done, info = env.step(action)
 
             # append most recent observation, suppress oldest observation

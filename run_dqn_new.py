@@ -94,7 +94,7 @@ def create_controller(env,
         gamma=0.95,
         learning_starts=5000,
         learning_freq=4,
-        frame_history_len=24,
+        frame_history_len=4,
         target_update_freq=500,
         grad_norm_clipping=10,
         double_q=True,
@@ -104,8 +104,8 @@ def create_controller(env,
     return controller
 
 
-def test_model(controller):
-    return controller.test_model()
+def test_model(controller, frame_history_len):
+    return controller.test_model(frame_history_len)
 
 
 def get_available_gpus():
@@ -166,10 +166,10 @@ def main():
     env.close()
 
     # test controller
-    save_dict = test_model(controller)
+    save_dict = test_model(controller, frame_history_len=4)
 
     # save result
-    with open('results/{}_{}_{}_{}.pkl'.format(*start_time), 'wb') as pickle_file:
+    with open('results/{}_{}_{}_{}_{}.pkl'.format(*start_time, args.rew_file), 'wb') as pickle_file:
         pickle.dump(save_dict, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
 
 
