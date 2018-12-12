@@ -475,6 +475,6 @@ class QLearner(object):
         :return: int
         """
         q_values = self.session.run(self.q_values,
-                                    feed_dict={self.obs_t_ph: [list_obs]})
+                                    feed_dict={self.obs_t_ph: np.reshape([list_obs], [1, -1])})
         action = np.argmax(q_values[0])
         return action
