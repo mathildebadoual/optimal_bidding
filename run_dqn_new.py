@@ -107,8 +107,8 @@ def create_controller(env,
     return controller
 
 
-def test_model(controller, frame_history_len):
-    return controller.test_model(frame_history_len)
+def test_model(controller):
+    return controller.test_model()
 
 
 def get_available_gpus():
@@ -169,7 +169,7 @@ def main():
     env.close()
 
     # test controller
-    save_dict = test_model(controller, frame_history_len=HISTORY_LENGTH)
+    save_dict = test_model(controller)
 
     # save result
     with open('results/{}_{}_{}_{}_{}.pkl'.format(*start_time, args.rew_file), 'wb') as pickle_file:

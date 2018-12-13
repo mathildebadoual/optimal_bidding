@@ -20,16 +20,10 @@ warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
 
-def model(x, output_size, n_layers):
-    i = 0
-    for i in range(n_layers):
-        x = tf.layers.dense(inputs=x, units=64, activation=tf.nn.relu, name='fc{}'.format(i))
-    x = tf.layers.dense(inputs=x, units=output_size, activation=None, name='fc{}'.format(i + 1))
-    return x
-
+HISTORY_LENGTH = 4
 
 def model_rnn(x, h, output_size, n_layers):
-    x_out = model(x, output_size, n_layers)
+    x_out = tf.layers.dense(inputs=x, units=64, activation=tf.nn.relu)
     cell = tf.contrib.rnn.GRUCell(output_size)
     x_next, h_next = tf.nn.dynamic_rnn(cell, x_out, initial_state=h, dtype=tf.float32)
     return x_next[:, -1, :], h_next
@@ -92,7 +86,7 @@ def create_controller(env,
         batch_size=32,
         gamma=0.95,
         learning_starts=500,
-        learning_freq=4,
+        learning_freq=HISTORY_LENGTH,
         frame_history_len=10,
         target_update_freq=1000,
         grad_norm_clipping=10,
