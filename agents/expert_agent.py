@@ -60,6 +60,7 @@ class ExpertAgent(object):
         return price_prediction_df
 
     def create_optimization_problem(self):
+        epsilon = 0.5
         # create a generic optimization problem solved for planning
         self.price_predictions_interval = cvx.Parameter(self.time_horizon)
         self.initial_soe = cvx.Parameter()
@@ -73,12 +74,12 @@ class ExpertAgent(object):
         for i in range(self.time_horizon-1):
             constraints += [self.soe[i+1] == self.soe[i] - self.battery_efficiency * self.planned_power[i]]
 
-        constraints += [self.soe <= self.max_soe] + [self.min_soe <= self.soe]
-        constraints += [self.planned_power <= self.max_power] + [self.min_power <= self.planned_power]
+        constraints += [self.soe <= self.max_soe - epsilon] + [self.min_soe + epsilon<= self.soe]
+        constraints += [self.planned_power <= self.max_power - epsilon] + [self.min_power + epsilon <=  self.planned_power]
 
         return cvx.Problem(opt, constraints)
 
-    def planning(self, step):
+    def planning(self, step, initial_soc):
         # solve optimization problem from actual time step for a certain horizon
         self.price_prediction_df['time_step'] = pd.to_datetime(self.price_prediction_df['time_step'])
 
@@ -86,7 +87,7 @@ class ExpertAgent(object):
         values_planning_horizon = self.price_prediction_df[self.price_prediction_df['time_step'] >= step]['values']
         
         self.price_predictions_interval.value = np.resize(values_planning_horizon.values[:self.time_horizon], (self.time_horizon,))
-        self.initial_soe.value = self.memory_dict['soe'][-1]
+        self.initial_soe.value = initial_soc
 
         #logging.info('---- Solve Optimization ----')
         self.problem.solve(verbose=False)

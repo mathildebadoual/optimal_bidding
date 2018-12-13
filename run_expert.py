@@ -16,7 +16,8 @@ def run_expert(path_memory_dict):
 
     while not done:
         logging.info('---- Step %s ----' % step)
-        planned_actions = expert.planning(step)
+        soc = expert.env._battery._state[0]
+        planned_actions = expert.planning(step, soc)
         done = expert.running(planned_actions)
         step += expert.env._delta_time
 
