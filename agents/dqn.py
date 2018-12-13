@@ -397,8 +397,6 @@ class QLearner(object):
 
             # YOUR CODE HERE
             obs_batch, act_batch, rew_batch, next_obs_batch, done_mask = self.replay_buffer.sample(self.batch_size)
-            print(obs_batch.shape)
-            print(self.obs_t_ph.shape)
             if not self.model_initialized:
                 initialize_interdependent_variables(self.session, tf.global_variables(), {
                     self.obs_t_ph: obs_batch,
@@ -481,7 +479,7 @@ class QLearner(object):
         done = False
         obs = env.reset(start_date=start_date)
 
-        list_obs = [np.zeros((3,), dtype=np.float32)] * (self.frame_history_len - 1) + [obs]
+        list_obs = [np.zeros(obs.shape, dtype=np.float32)] * (self.frame_history_len - 1) + [obs]
 
         save_dict['date'].append(env._date)
         save_dict['soc'].append(obs[1])
@@ -495,7 +493,7 @@ class QLearner(object):
         save_dict['cost_dqn'].append(0)
         while not done:
             save_dict['date'].append(env._date)
-            list_obs_lin = np.concatenate(list_obs)
+            list_obs_lin = np.concatenate(list_obs).reshape((1, -1))
             action = self.get_action_todo(list_obs_lin)
             obs, reward, done, info = env.step(action)
 
@@ -511,6 +509,8 @@ class QLearner(object):
                 save_dict['cost_dqn'].append(cost_dqn)
             else: 
                 power, cost = env.discrete_to_continuous_action(action)
+                save_dict['power_dqn'].append(0)
+                save_dict['cost_dqn'].append(0)
             save_dict['power_bid'].append(power)
             save_dict['price_bid'].append(cost)
             
