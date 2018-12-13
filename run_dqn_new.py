@@ -134,7 +134,8 @@ def main():
                         help='Path for the rewards file and name of the model.')
     parser.add_argument("--test", "-t", action="store_true")
     args = parser.parse_args()
-
+    rew_file = args.rew_file
+    rew_name = rew_file.split(".")[0]
     # ************ MAIN ************
     start_time = datetime.datetime.now()
     start_time = [start_time.day,start_time.hour,
@@ -148,8 +149,8 @@ def main():
     session = get_session()
 
     controller = create_controller(env, session, num_timesteps=1e8,
-                                   save_path='/tmp/{}.ckpt'.format(args.rew_file),
-                                   rew_file=args.rew_file)
+                                   save_path='/tmp/{}.ckpt'.format(rew_name),
+                                   rew_file=rew_file)
 
     # train controller
     if not args.test:
@@ -161,7 +162,7 @@ def main():
         except KeyboardInterrupt:
             print("KeyboardInterrupt error caught")
     else:
-        controller.saver.restore(controller.session, '/tmp/{}.ckpt'.format(args.rew_file))
+        controller.saver.restore(controller.session, '/tmp/{}.ckpt'.format(rew_name))
         # FixMe: Ugly
         controller.env._energy_market._gen_df = pd.read_pickle("data/gen_caiso.pkl")
         controller.env._energy_market._dem_df = pd.read_pickle("data/dem_caiso.pkl")
@@ -172,9 +173,8 @@ def main():
     save_dict = test_model(controller)
 
     # save result
-    with open('results/{}_{}_{}_{}_{}.pkl'.format(*start_time, args.rew_file), 'wb') as pickle_file:
+    with open('results/{}_{}_{}_{}_{}.pkl'.format(*start_time, rew_name), 'wb') as pickle_file:
         pickle.dump(save_dict, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
-
 
 
 if __name__ == "__main__":
