@@ -538,10 +538,10 @@ class QLearner(object):
         hidden = np.zeros((1, self.gru_size), dtype=np.float32)
         if self.with_rnn:
             q_values = self.session.run(self.q_values,
-                                    feed_dict={self.obs_t_ph: obs,
+                                    feed_dict={self.obs_t_ph: [obs],
                                                self.sy_hidden: hidden})
         else:
             q_values = self.session.run(self.q_values,
-                                    feed_dict={self.obs_t_ph: obs})
+                                    feed_dict={self.obs_t_ph: [obs]})
         action = np.argmax(q_values[0])
         return action
