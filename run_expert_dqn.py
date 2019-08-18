@@ -119,10 +119,12 @@ def main():
 
     # ************ MAIN ************
     start_time = datetime.datetime.now()
-    start_time = [start_time.day,start_time.hour,
+    start_time = [start_time.day, start_time.hour,
                   start_time.minute, start_time.second]
 
     env = gym.make('energy_market_battery-v1')
+    if args.test:
+        env.set_test()
 
     # initialize
     session = get_session()
@@ -131,7 +133,7 @@ def main():
     	env, 
     	session, 
     	num_timesteps=1e8, 
-    	save_path='/tmp/model_2.ckpt', 
+    	save_path='/tmp/{}.ckpt'.format(args.rew_file),
     	rew_file=args.rew_file, 
     	with_expert=True
     	)
@@ -146,10 +148,9 @@ def main():
         except KeyboardInterrupt:
             print("KeyboardInterrupt error caught")
     else:
-        controller.saver.restore(controller.session, '/tmp/model_2.ckpt')
+        controller.saver.restore(controller.session, '/tmp/{}.ckpt'.format(args.rew_file))
         # FixMe: Ugly
-        controller.env._energy_market._gen_df = pd.read_pickle("data/gen_caiso.pkl")
-        controller.env._energy_market._dem_df = pd.read_pickle("data/dem_caiso.pkl")
+        controller.env.set_test()
 
     env.close()
 
@@ -157,9 +158,8 @@ def main():
     save_dict = test_model(controller)
 
     # save result
-    with open('results/{}_{}_{}_{}.pkl'.format(*start_time), 'wb') as pickle_file:
+    with open('results/{}_{}_{}_{}_{}.pkl'.format(*start_time, args.rew_file), 'wb') as pickle_file:
         pickle.dump(save_dict, pickle_file, protocol=pickle.HIGHEST_PROTOCOL)
-
 
 
 if __name__ == "__main__":

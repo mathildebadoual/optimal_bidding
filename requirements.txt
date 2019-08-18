@@ -7,3 +7,4 @@ cvxpy
 matplotlib
 pyiso
 tensorflow
+baseline

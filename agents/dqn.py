@@ -98,7 +98,7 @@ class QLearner(object):
         self.test_env = env
         self.session = session
         self.exploration = exploration
-        self.rew_file = str(uuid.uuid4()) + '.pkl' if rew_file is None else rew_file
+        self.rew_file = str(uuid.uuid4()) + '.pkl' if rew_file is None else 'saved_model/{}.pkl'.format(rew_file)
         self.episode_rewards = []
         self.save_path = save_path
         self.q_func = q_func
@@ -463,7 +463,7 @@ class QLearner(object):
             env = self.env
         else:
             env = self.test_env
-        start_date = start_date or env._start_date
+        start_date = start_date or env._date
 
         save_dict = {
             'power_bid': [],
@@ -472,10 +472,14 @@ class QLearner(object):
             'power_cleared': [],
             'reward': [],
             'date': [],
-            'price_cleared': [],
+            'price_cleared': [0],
             'ref_price': [],
             'power_dqn': [],
             'cost_dqn': [],
+            'power_bid_dqn': [],
+            'power_bid_expert': [],
+            'price_bid_dqn': [],
+            'price_bid_expert': [],
         }
         done = False
         obs = env.reset(start_date=start_date)
@@ -489,9 +493,12 @@ class QLearner(object):
         save_dict['price_bid'].append(0)
         save_dict['reward'].append(0)
         save_dict['price_cleared'].append(0)
-        save_dict['ref_price'].append(0)
         save_dict['power_dqn'].append(0)
         save_dict['cost_dqn'].append(0)
+        save_dict['power_bid_dqn'].append(0)
+        save_dict['power_bid_expert'].append(0)
+        save_dict['price_bid_dqn'].append(0)
+        save_dict['price_bid_expert'].append(0)
         while not done:
             save_dict['date'].append(env._date)
             list_obs_lin = np.concatenate(list_obs).reshape((1, -1))
@@ -508,6 +515,10 @@ class QLearner(object):
                 power_dqn, cost_dqn = env.discrete_to_continuous_action(action)
                 save_dict['power_dqn'].append(power_dqn)
                 save_dict['cost_dqn'].append(cost_dqn)
+                save_dict['power_bid_dqn'].append(info['action_dqn'][0])
+                save_dict['power_bid_expert'].append(info['action_expert'][0])
+                save_dict['price_bid_dqn'].append(info['action_dqn'][1])
+                save_dict['price_bid_expert'].append(info['action_expert'][1])
             else: 
                 power, cost = env.discrete_to_continuous_action(action)
                 save_dict['power_dqn'].append(0)
@@ -515,7 +526,7 @@ class QLearner(object):
             save_dict['power_bid'].append(power)
             save_dict['price_bid'].append(cost)
             
-            save_dict['soc'].append(obs[1])
+            save_dict['soc'].append(obs[2])
             save_dict['power_cleared'].append(obs[0])
             save_dict['reward'].append(reward)
             save_dict['price_cleared'].append(info['price_cleared'])
