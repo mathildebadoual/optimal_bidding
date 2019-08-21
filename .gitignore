@@ -105,4 +105,4 @@ ENV/
 
 .DS_Store
 .idea/
-market/
+market_env/
