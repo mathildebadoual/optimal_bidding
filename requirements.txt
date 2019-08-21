@@ -1,10 +1,5 @@
 numpy
 cvxpy
 pandas
-gym
-tensorflow
 cvxpy
 matplotlib
-pyiso
-tensorflow
-baseline
