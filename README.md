@@ -5,7 +5,7 @@
 
 #### Clone project  
 ```
-git clone 
+git clone https://github.com/mathildebadoual/optimal_bidding.git
 ```
 
 #### Install virtual environement:
