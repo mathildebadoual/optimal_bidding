@@ -1,3 +1,5 @@
+import numpy as np
+
 """Energy Market Environment"""
 
 
@@ -32,18 +34,29 @@ class PVAgent(Agent):
     def __init__(self):
         super().__init__()
 
-    def compute_bid(self, previous_bid, hour):
+    def sample_state(self, previous_bid, hour):
+        """ return the value for the next bid 
+
+        previous_bid: what the last bid was 
+        hour: which hour we are sampling for 
+        """
+
 
     #1. load the heat map 
 
-        PVTransitionMap = TransitionMap()
+        PVTransitionMap = TransitionMap("PV")
         PV_hour_map = PVTransitionMap.get_transition_map_hour[hour]
 
     #2. Determine the place where it was for the last timestep 
+        bids = list(PV_hour_map.columns)
         bid_probabilities = PV_hour_map.loc[previous_bid] # need to test this
 
     #3. Sample a jump to the next state 
-        np.random.multinomial(1,bid_probabilities,size=K)
+        nextState = np.random.choice(elements, p=bid_probabilities)
+        return nextState
+
+    def state_to_bid(hour):
+        nextState = 
 
 
 class Bid():
