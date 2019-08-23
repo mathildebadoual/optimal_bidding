@@ -71,11 +71,7 @@ def consolidate_csvs(data_path, output_folder, output_prefix):
         
    # grab csvs from the specified folder
     onlycsvs = [join(data_path, f) for f in listdir(data_path) if isfile(join(data_path, f)) and f.lower().endswith(".csv")]
-    i = 0
     for csv_name in onlycsvs:
-        i += 1
-        if i == 4:
-            break
         print("Reading {}".format(csv_name.split("/")[-1]))
         with open(csv_name) as csvfile:
             reader = csv.reader(csvfile)
@@ -137,3 +133,60 @@ def consolidate_csvs(data_path, output_folder, output_prefix):
         os.makedirs(output_folder)
     five_min_df.to_csv(join(output_folder, output_prefix + "_5min.csv"))
     thirty_min_df.to_csv(join(output_folder, output_prefix + "_30min.csv"))
+
+def get_regional_data_from_csv(csv_path, region_ID):
+    df = pd.read_csv(csv_path, index_col=["Timestamp"], parse_dates=True)
+    # filter for region
+    df = df[df["Region"] == region_ID]
+    return df
+
+def round_to_nearest(x, base):
+    # helper function to bin values
+    return base * np.round(x/base)
+
+def get_transition_probabilities(data, bin_size=10):
+    """
+    First discretizes data by rounding the values to the nearest bin_size.
+    Then, calculates transition probabilites from consecutive rounded values in data.
+
+    Parameters
+    ----------
+    data: 
+        Name of the column in df that contains the data.
+    bin_size: int
+        Values in in data will be rounded to the nearest bin_size.
+
+    Returns
+    -------
+    probs: dict
+        A nested dictionary.
+        The keys of the outer dictionary are the "before" states.
+        The values of the outer dictionary are also dictionaries (inner dictionaries).
+        The keys of the inner dictionaries are "after" states.
+        The values of the inner dictionaries are transition probabilities.
+    """
+    data = df[column].values
+    counts = {}
+    for i in range(len(data) - 1):
+        current_state = data[i]
+        next_state = data[i+1]
+        if current_state in counts:
+            temp = counts[current_state]
+            if next_state in temp:
+                temp[next_state] += 1
+            else:
+                temp[next_state] = 1
+            temp["total"] += 1
+        else:
+            counts[current_state] = {next_state:1, "total": 1}
+            
+    probs = {}
+    for state in counts:
+        temp = counts[state]
+        total_count = temp["total"]
+        transitions = {}
+        for next_state in temp:
+            if next_state != "total":
+                transitions[next_state] = temp[next_state] / total_count
+        probs[state] = transitions
+    return probs
