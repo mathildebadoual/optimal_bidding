@@ -42,20 +42,41 @@ class TransitionMap():
 
         return transition_maps
 
-def consolidate_csvs(folder_path, csv_path):
+def consolidate_csvs(data_path, output_folder, output_prefix):
     """
-    This will take a folder with MMS csvs and create a new csv with just the demand and energy data.
-    """
-#     with open(csv_path) as output:
-#         writer = csv.writer(output)
-#         # write header of output file
-#         writer.writerow(["Timestamp", "RRP", "Total_Demand"])
+    Takes a folder with MMS csvs and create a new csv with just the demand and energy data.
+    Assumes that all csvs in the directory are to be used and follow the MMS format.
+    Warns the user if there are missing datetimes.
+
+    Parameters
+    ----------
+    data_path: string
+        Absolute path to directory containing csvs with MMS data.
     
-    df = pd.DataFrame(columns=["Timestamp", "Region", "Price", "Demand"])
+    output_folder: string
+        Absolute path to directory where outputted csvs will be created.
+        
+    output_prefix: string
+        Prefix for the filename of the outputted csvs.
+
+    Returns
+    -------
+    None
+
+    """
+
+    
+    five_min_df = pd.DataFrame(columns=["Timestamp", "Region", "Price", "Demand"])
+    thirty_min_df = pd.DataFrame(columns=["Timestamp", "Region", "Price", "Demand"])
         
    # grab csvs from the specified folder
-    onlycsvs = [join(folder_path, f) for f in listdir(folder_path) if isfile(join(folder_path, f)) and f.lower().endswith(".csv")]
+    onlycsvs = [join(data_path, f) for f in listdir(data_path) if isfile(join(data_path, f)) and f.lower().endswith(".csv")]
+    i = 0
     for csv_name in onlycsvs:
+        i += 1
+        if i == 4:
+            break
+        print("Reading {}".format(csv_name.split("/")[-1]))
         with open(csv_name) as csvfile:
             reader = csv.reader(csvfile)
             
@@ -63,6 +84,9 @@ def consolidate_csvs(folder_path, csv_path):
             price_index = None
             timestamp_index = None
             region_index = None
+            
+            freq = None
+            
             for row in reader:
                 if row[0] == "C":
                     # logging rows are useless
@@ -73,6 +97,12 @@ def consolidate_csvs(folder_path, csv_path):
                     price_index = row.index("RRP")
                     timestamp_index = row.index("SETTLEMENTDATE")
                     region_index = row.index("REGIONID")
+                    if row[1] == "DREGION":
+                        freq = 5
+                    elif row[1] == "TREGION":
+                        freq = 30
+                    else:
+                        freq = None
                 elif row[0] == "D":
                     # data row
                     data = {}
@@ -80,13 +110,30 @@ def consolidate_csvs(folder_path, csv_path):
                     data["Region"] = row[region_index]
                     data["Price"] = row[price_index]
                     data["Demand"] = row[demand_index]
-                    df = df.append(data, ignore_index=True)
+                    if freq == 5:
+                        five_min_df = five_min_df.append(data, ignore_index=True)
+                    elif freq == 30:
+                        thirty_min_df = thirty_min_df.append(data, ignore_index=True)
+                    else:
+                        warnings.warn("Unrecognized frequency in {}. Ignoring row.".format(csv_name), UserWarning)
+                    
                 else:
                     warnings.warn("Unrecognized row type in {}. Ignoring.".format(csv_name), UserWarning)
+            
 
-    df = df.set_index("Timestamp")
-    # sort by date
-    df = df.sort_index()
-    # write to specified output
-    df.to_csv(csv_path)                    
     
+    five_min_df = five_min_df.set_index("Timestamp")
+    thirty_min_df = thirty_min_df.set_index("Timestamp")
+    # sort by date
+    five_min_df = five_min_df.sort_index()
+    thirty_min_df = thirty_min_df.sort_index()
+    
+    # drop duplicates
+    five_min_df = five_min_df.drop_duplicates()
+    thirty_min_df = thirty_min_df.drop_duplicates()
+    
+    # write to specified output
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    five_min_df.to_csv(join(output_folder, output_prefix + "_5min.csv"))
+    thirty_min_df.to_csv(join(output_folder, output_prefix + "_30min.csv"))
