@@ -5,6 +5,9 @@ from os import listdir
 from os.path import isfile, join
 import warnings
 
+from datetime import date, timedelta, datetime
+
+
 class TransitionMap():
     def __init__(self):
         self._transition_maps = self._download_transition_maps()
@@ -88,5 +91,34 @@ def consolidate_csvs(folder_path, csv_path):
     # sort by date
     df = df.sort_index()
     # write to specified output
-    df.to_csv(csv_path)                    
+    df.to_csv(csv_path)   
+
+def sample_day_solar_generation(month):
+    """
+    """
+
+    generation_data = pd.read_csv((str(os.getcwd())+
+            "/New_TMY3_Real_Years/solar_generation_australia.csv")).rename(columns={
+        "Hours since 00:00 Jan 1":"Hrs",
+        "Hourly Data: Electricity load (year 1) (kW)":"kW"
+    })
+
+    start = datetime(2018,1,1, 0,0,0)     
+    delta = [timedelta(hours = hr) for hr in generation_data["Hrs"]]     # Create a time delta object from the number of days
+    generation_data["time"]=[start+d for d in delta]
+
+    month_data = generation_data.loc[[time.month == 2 for time in generation_data["time"]]]
+    random_day = np.random.choice(30,1)
+
+    day_data = month_data.loc[[time.day == random_day[0] for time in month_data["time"]]]
+
+    return day_data
+
+
+
+
+
+
+
+
     
