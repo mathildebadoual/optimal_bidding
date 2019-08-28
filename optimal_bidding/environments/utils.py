@@ -5,6 +5,9 @@ from os import listdir
 from os.path import isfile, join
 import warnings
 
+from datetime import date, timedelta, datetime
+
+
 class TransitionMap():
     def __init__(self):
         self._transition_maps = self._download_transition_maps()
@@ -42,6 +45,7 @@ class TransitionMap():
 
         return transition_maps
 
+      
 def consolidate_csvs(data_path, output_folder, output_prefix):
     """
     Takes a folder with MMS csvs and create a new csv with just the demand and energy data.
@@ -64,7 +68,6 @@ def consolidate_csvs(data_path, output_folder, output_prefix):
     None
 
     """
-
     
     five_min_df = pd.DataFrame(columns=["Timestamp", "Region", "Price", "Demand"])
     thirty_min_df = pd.DataFrame(columns=["Timestamp", "Region", "Price", "Demand"])
@@ -116,8 +119,6 @@ def consolidate_csvs(data_path, output_folder, output_prefix):
                 else:
                     warnings.warn("Unrecognized row type in {}. Ignoring.".format(csv_name), UserWarning)
             
-
-    
     five_min_df = five_min_df.set_index("Timestamp")
     thirty_min_df = thirty_min_df.set_index("Timestamp")
     # sort by date
@@ -134,16 +135,19 @@ def consolidate_csvs(data_path, output_folder, output_prefix):
     five_min_df.to_csv(join(output_folder, output_prefix + "_5min.csv"))
     thirty_min_df.to_csv(join(output_folder, output_prefix + "_30min.csv"))
 
+    
 def get_regional_data_from_csv(csv_path, region_ID):
     df = pd.read_csv(csv_path, index_col=["Timestamp"], parse_dates=True)
     # filter for region
     df = df[df["Region"] == region_ID]
     return df
 
+  
 def round_to_nearest(x, base):
     # helper function to bin values
     return base * np.round(x/base)
 
+  
 def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):
     """
     First discretizes the data by rounding the values to the nearest bin_size.
@@ -204,4 +208,25 @@ def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):
                     transitions[next_state] = temp[next_state] / total_count
             probs[state] = transitions
     return all_probs
+  
 
+def sample_day_solar_generation(month):
+    """
+    """
+
+    generation_data = pd.read_csv((str(os.getcwd())+
+            "/New_TMY3_Real_Years/solar_generation_australia.csv")).rename(columns={
+        "Hours since 00:00 Jan 1":"Hrs",
+        "Hourly Data: Electricity load (year 1) (kW)":"kW"
+    })
+
+    start = datetime(2018,1,1, 0,0,0)     
+    delta = [timedelta(hours = hr) for hr in generation_data["Hrs"]]     # Create a time delta object from the number of days
+    generation_data["time"]=[start+d for d in delta]
+
+    month_data = generation_data.loc[[time.month == 2 for time in generation_data["time"]]]
+    random_day = np.random.choice(30,1)
+
+    day_data = month_data.loc[[time.day == random_day[0] for time in month_data["time"]]]
+
+    return day_data
