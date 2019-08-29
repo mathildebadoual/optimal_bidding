@@ -19,3 +19,8 @@ pip3 install -r requirements.txt
 ```
 make test
 ```
+
+#### Create the csvs:
+```
+python3 optimal_bidding/utils/csv_refactor.py
+```
