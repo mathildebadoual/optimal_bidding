@@ -1,11 +1,12 @@
-import numpy as np
-
 """Energy Market Environment"""
 
+import numpy as np
+
+from
 
 class EnergyMarket():
     def __init__(self):
-        pass
+        transition_map = TransitionMap()
 
     def step(self):
         """Collects everyone bids and compute the dispatch
@@ -37,35 +38,35 @@ class PVAgent(Agent):
     def sample_next_state_from_transition_matrix(self, previous_bid, hour):
         """ return the value for the next bid by sampling from transition matrix
 
-        previous_bid: what the last bid was 
-        hour: which hour we are sampling for 
+        previous_bid: what the last bid was
+        hour: which hour we are sampling for
         """
 
 
-    #1. load the heat map 
+    #1. load the heat map
 
         PVTransitionMap = TransitionMap("PV")
         PV_hour_map = PVTransitionMap.get_transition_map_hour[hour]
 
-    #2. Determine the place where it was for the last timestep 
+    #2. Determine the place where it was for the last timestep
         bids = list(PV_hour_map.columns)
         bid_probabilities = PV_hour_map.loc[previous_bid] # need to test this
 
-    #3. Sample a jump to the next state 
+    #3. Sample a jump to the next state
         nextState = np.random.choice(elements, p=bid_probabilities)
         return nextState
 
     def state_to_bid(hour):
-        ## will fill this out when the Bid class is more filled out 
+        ## will fill this out when the Bid class is more filled out
         Bid.power()= sample_generation(hour)
 
         pass
 
     def sample_generation(hour):
-        """samples a day of solar generation from a year; see utils 
+        """samples a day of solar generation from a year; see utils
         fuction sample_day_solar_generation(month) for more info
 
-        Currently assumes that we'll stick with a single month. 
+        Currently assumes that we'll stick with a single month.
 
         """
         generation_curve = sample_day_solar_generation(6)
