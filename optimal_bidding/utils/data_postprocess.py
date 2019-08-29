@@ -1,10 +1,6 @@
 import os
 import pandas as pd
 import numpy as np
-import csv
-from os import listdir
-from os.path import isfile, join
-import warnings
 
 from datetime import timedelta, datetime
 
@@ -44,7 +40,6 @@ class TransitionMap():
             transition_maps[hour] = pd.read_csv(filepath)
 
         return transition_maps
-
 
 
 def get_regional_data_from_csv(csv_path, region_ID):
