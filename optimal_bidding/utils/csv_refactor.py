@@ -5,7 +5,7 @@ from os.path import isfile, join, abspath, dirname
 import warnings
 
 
-def consolidate_csvs(data_path, output_folder, output_prefix):
+def consolidate_csvs(data_path, output_folder, output_prefix, region="SA1"):
     """
     Takes a folder with MMS csvs and create a new csv
     with just the demand and energy data.
@@ -23,6 +23,9 @@ def consolidate_csvs(data_path, output_folder, output_prefix):
 
     output_prefix: string
         Prefix for the filename of the outputted csvs.
+
+    region: string
+        RegionID for the desired region data. 
 
     Returns
     -------
@@ -76,16 +79,17 @@ def consolidate_csvs(data_path, output_folder, output_prefix):
                     data["Region"] = row[region_index]
                     data["Price"] = row[price_index]
                     data["Demand"] = row[demand_index]
-                    if freq == 5:
-                        five_min_df = five_min_df.append(data,
-                                                         ignore_index=True)
-                    elif freq == 30:
-                        thirty_min_df = thirty_min_df.append(data,
+                    if data["Region"] == region:
+                        if freq == 5:
+                            five_min_df = five_min_df.append(data,
                                                              ignore_index=True)
-                    else:
-                        warnings.warn(
-                            "Unrecognized frequency in {}. Ignoring row.".
-                            format(csv_name), UserWarning)
+                        elif freq == 30:
+                            thirty_min_df = thirty_min_df.append(data,
+                                                                 ignore_index=True)
+                        else:
+                            warnings.warn(
+                                "Unrecognized frequency in {}. Ignoring row.".
+                                format(csv_name), UserWarning)
 
                 else:
                     warnings.warn(
@@ -115,4 +119,4 @@ if __name__ == '__main__':
     output_folder = join(static_path, 'consolidated_data')
     data_path = join(static_path, 'PUBLIC_PRICES_20180601')
     output_prefix = 'June2018'
-    consolidate_csvs(data_path, output_folder, output_prefix)
+    consolidate_csvs(data_path, output_folder, output_prefix, region="SA1")
