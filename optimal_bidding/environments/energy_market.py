@@ -15,6 +15,9 @@ class EnergyMarket():
         """
         pass
 
+    def compute_dispatch(self):
+
+
 
 class Agent():
     """Agent parent class, all the other ch
