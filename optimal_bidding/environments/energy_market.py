@@ -1,12 +1,14 @@
 """Energy Market Environment"""
 
 import numpy as np
+import cvxpy as cvx
 
-from
+from optimal_bidding.utils.data_postprocess import TransitionMap
+
 
 class EnergyMarket():
     def __init__(self):
-        transition_map = TransitionMap()
+        pass
 
     def step(self):
         """Collects everyone bids and compute the dispatch
@@ -29,37 +31,39 @@ class Agent():
         Return:
           bid: Bid object
         """
-        pass
+        raise NotImplementedError
+
 
 class PVAgent(Agent):
     def __init__(self):
         super().__init__()
+        self.pv_transition_map = TransitionMap("PV")
+
 
     def sample_next_state_from_transition_matrix(self, previous_bid, hour):
         """ return the value for the next bid by sampling from transition matrix
 
-        previous_bid: what the last bid was
-        hour: which hour we are sampling for
+        Args:
+          previous_bid: what the last bid was
+          hour: which hour we are sampling for
+
+        Return:
+          next_state
         """
 
+        pv_hour_map = self.pv_transition_map.get_transition_map_hour(hour)
 
-    #1. load the heat map
+        # Determine the place where it was for the last timestep
+        bids = list(pv_hour_map.columns)
+        bid_probabilities = pv_hour_map.loc[previous_bid]
 
-        PVTransitionMap = TransitionMap("PV")
-        PV_hour_map = PVTransitionMap.get_transition_map_hour[hour]
-
-    #2. Determine the place where it was for the last timestep
-        bids = list(PV_hour_map.columns)
-        bid_probabilities = PV_hour_map.loc[previous_bid] # need to test this
-
-    #3. Sample a jump to the next state
-        nextState = np.random.choice(elements, p=bid_probabilities)
-        return nextState
+        # Sample a jump to the next state
+        next_state = np.random.choice(elements, p=bid_probabilities)
+        return next_state
 
     def state_to_bid(hour):
-        ## will fill this out when the Bid class is more filled out
-        Bid.power()= sample_generation(hour)
-
+        # will fill this out when the Bid class is more filled out
+        # Bid.power() = sample_generation(hour)
         pass
 
     def sample_generation(hour):
@@ -73,7 +77,6 @@ class PVAgent(Agent):
         return generation_curve["kW"][hour]
 
 
-
 class Bid():
     """Bid object so all bids have the same format
     """
@@ -82,4 +85,3 @@ class Bid():
 
     def power(self):
         pass
-

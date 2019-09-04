@@ -7,8 +7,12 @@ from datetime import timedelta, datetime
 
 class TransitionMap():
     def __init__(self, energy_type):
-        self._transition_maps = self._download_transition_maps()
+        """
+        Args:
+          energy_type: string
+        """
         self._energy_type = energy_type
+        self._transition_maps = self._download_transition_maps()
 
     def get_transition_map_hour(self, hour):
         """Get the transition map for a specific hour
@@ -22,6 +26,18 @@ class TransitionMap():
 
         return self._transition_maps[hour]
 
+    def get_next_state(self, current_state, hour):
+        """From the transition map, generates the next state using the probabilities.
+
+        Args:
+          current_state: int?
+          hour: timestamp
+
+        Return:
+          state: ?
+        """
+        print(self.get_transition_map_hour(hour))
+
     def _download_transition_maps(self):
         """Load the CSV transition maps
 
@@ -33,10 +49,9 @@ class TransitionMap():
 
         working_directory = os.getcwd()
         transition_maps = {}
-
         for hour in range(0, 23):
             filepath = (working_directory +
-                        str(self._energy_type) / + "_hour_" + str(hour))
+                        self._energy_type  + "/_hour_" + str(hour))
             transition_maps[hour] = pd.read_csv(filepath)
 
         return transition_maps

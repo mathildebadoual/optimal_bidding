@@ -25,7 +25,7 @@ def consolidate_csvs(data_path, output_folder, output_prefix, region="SA1"):
         Prefix for the filename of the outputted csvs.
 
     region: string
-        RegionID for the desired region data. 
+        RegionID for the desired region data.
 
     Returns
     -------
