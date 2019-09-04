@@ -16,7 +16,7 @@ class EnergyMarket():
         pass
 
     def compute_dispatch(self):
-
+        pass
 
 
 class Agent():
@@ -42,9 +42,9 @@ class PVAgent(Agent):
         super().__init__()
         self.pv_transition_map = TransitionMap("PV")
 
-
     def sample_next_state_from_transition_matrix(self, previous_bid, hour):
-        """ return the value for the next bid by sampling from transition matrix
+        """ return the value for the next bid by sampling from transition
+        matrix
 
         Args:
           previous_bid: what the last bid was
@@ -83,8 +83,12 @@ class PVAgent(Agent):
 class Bid():
     """Bid object so all bids have the same format
     """
-    def __init__(self):
-        self._agent_id = None
+    def __init__(self, power_bid, price_bid):
+        self._power_bid = power_bid
+        self._price_bid = price_bid
 
     def power(self):
-        pass
+        return self._power_bid
+
+    def price(self):
+        return self._price_bid
