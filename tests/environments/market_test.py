@@ -15,5 +15,20 @@ class TestBid(unittest.TestCase):
         self.assertEqual(self._bid.power(), None)
 
 
+class TestAgent(unittest.TestCase):
+    def setUp(self):
+        self._agent = energy_market.Agent()
+
+    def test_bid(self):
+        self.assertRaises(NotImplementedError, self._agent.bid())
+
+
+class TestPVAgent(unittest.TestCase):
+    def setUp(self)i:
+        self._pv_agent = energy_market.PVAgent()
+
+    def test_bid(self):
+        self._pv_agent.bid()
+
 if __name__ == '__main__':
     unittest.main()

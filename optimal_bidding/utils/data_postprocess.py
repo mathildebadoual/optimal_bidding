@@ -5,12 +5,6 @@ import numpy as np
 from datetime import timedelta, datetime
 from collections import OrderedDict
 
-def get_regional_data_from_csv(csv_path, region_ID="SA1"):
-    df = pd.read_csv(csv_path, index_col=["Timestamp"], parse_dates=True)
-    # filter for region
-    df = df[df["Region"] == region_ID]
-    return df
-
 
 def round_to_nearest(x, base):
     # helper function to bin values
@@ -23,30 +17,29 @@ def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):
     Then, calculates transition probabilites from consecutive rounded values
     in data. Calculates separate transition probabilities for each timestep.
 
-    Parameters
-    ----------
-    df: dataframe
-        Dataframe holding the data to be analyzed
-    column: size
-        The name of the column in df that holds the data.
-    bin_size: int
-        Values in in data will be rounded to the nearest bin_size.
-    timestep: int
-        The number of minutes in each timestep.
+    Args:
+      df: (pandas.Dataframe)
+          Dataframe holding the data to be analyzed
+      column: (string)
+          The name of the column in df that holds the data.
+      bin_size: (int)
+          Values in in data will be rounded to the nearest bin_size.
+      timestep: (int)
+          The number of minutes in each timestep.
 
-    Returns
-    -------
-    all_probs: list
-        A list of nested dictionaries.
-        The index in this list corresponds to the time of day.
-        An element with index n contains the transition probabilities
-        for the timestep that starts at n*timestep minutes after 0:00.
-        Each element is structured as:
-            The keys of the outer dictionary are the "before" states.
-            The values of the outer dictionary are also dictionaries
-                  (inner dictionaries).
-            The keys of the inner dictionaries are "after" states.
-            The values of the inner dictionaries are transition probabilities.
+    Returns:
+      all_probs: (list)
+          A list of nested dictionaries.
+          The index in this list corresponds to the time of day.
+          An element with index n contains the transition probabilities
+          for the timestep that starts at n*timestep minutes after 0:00.
+          Each element is structured as:
+              The keys of the outer dictionary are the "before" states.
+              The values of the outer dictionary are also dictionaries
+                    (inner dictionaries).
+              The keys of the inner dictionaries are "after" states.
+              The values of the inner dictionaries are transition
+              probabilities.
     """
     data = df[column].values
     times = df.index
@@ -83,8 +76,8 @@ def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):
 
 class TransitionMap():
     def __init__(self, csv_path, datatype="Price", bin_size=10, timestep=30):
-        self._transition_maps = self._load_transition_map_from_csv(csv_path, datatype, bin_size, timestep)
-
+        self._transition_maps = self._load_transition_map_from_csv(
+            csv_path, datatype, bin_size, timestep)
 
     def get_transition_map_hour(self, hour):
         """Get the transition map for a specific hour
@@ -93,26 +86,28 @@ class TransitionMap():
           hour: timestamp
 
         Return:
-          transition_map_hour: nested dictionary which is structured as: 
+          transition_map_hour: nested dictionary which is structured as:
                 The keys of the outer dictionary are the "before" states.
                 The values of the outer dictionary are also dictionaries
                       (inner dictionaries).
                 The keys of the inner dictionaries are "after" states.
-                The values of the inner dictionaries are transition probabilities.
+                The values of the inner dictionaries are transition
+                probabilities.
         """
-
         return self._transition_maps[hour]
 
     def get_next_state(self, current_state, hour):
         """
-        From the transition map, generates the next state using the probabilities.
-        The current state is returned if it is not in the transition matrix for the specified hour.
+        From the transition map, generates the next
+        state using the probabilities.
+        The current state is returned if it is not in
+        the transition matrix for the specified hour.
 
         Args:
           current_state: int
                 current state rounded to the nearest self.bin_size.
           hour: int
-                
+
         Return:
             state: int
                 Randomly sampled next state from the transition matrix.
@@ -120,9 +115,13 @@ class TransitionMap():
 
         transition_map_hour = self.get_transition_map_hour(hour)
         if current_state in transition_map_hour:
-             probs = transition_map_hour[current_state]
+            probs = transition_map_hour[current_state]
         else:
-            raise Warning(UserWarning, "Current state isn't in the transition map. Returning current state as next state.")
+            raise Warning(
+                UserWarning,
+                "Current state isn't in the transition map. \
+                        Returning current state as next state."
+            )
             return current_state
 
         cumulative_probs = OrderedDict()
@@ -137,20 +136,20 @@ class TransitionMap():
             if r <= cumulative:
                 return state
 
-
-    def _load_transition_map_from_csv(self, csv_path, datatype, bin_size, timestep):
+    def _load_transition_map_from_csv(self, csv_path, datatype, bin_size,
+                                      timestep):
         """Load the CSV transition maps
 
-        Parameters
-        ----------
-        csv_path: string
-            Path to csv holding data 
-        datatype: string
-            The type of data that the transition map is supposed to reflect. Corresponds to a column name in the csv.
-        bin_size: int
-            Data values will be rounded to the nearest bin_size.
-        timestep: int
-            The number of minutes in each timestep.
+        Args:
+          csv_path: string
+              Path to csv holding data
+          datatype: string
+              The type of data that the transition map is supposed to reflect.
+              Corresponds to a column name in the csv.
+          bin_size: int
+              Data values will be rounded to the nearest bin_size.
+          timestep: int
+              The number of minutes in each timestep.
 
         Return:
           transition_maps: list
@@ -163,13 +162,16 @@ class TransitionMap():
                     The values of the outer dictionary are also dictionaries
                           (inner dictionaries).
                     The keys of the inner dictionaries are "after" states.
-                    The values of the inner dictionaries are transition probabilities.
+                    The values of the inner dictionaries are transition
+                    probabilities.
         """
 
-
-        #assume we always want "SA1"
-        df = get_regional_data_from_csv(csv_path)
-        transition_maps = get_transition_probabilities(df, datatype, bin_size, timestep)
+        # assume we always want "SA1"
+        df = pd.read_csv(csv_path, index_col=["Timestamp"], parse_dates=True)
+        # filter for region
+        df = df[df["Region"] == 'SA1']
+        transition_maps = get_transition_probabilities(df, datatype, bin_size,
+                                                       timestep)
         return transition_maps
 
 

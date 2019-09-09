@@ -13,24 +13,18 @@ def consolidate_csvs(data_path, output_folder, output_prefix, region="SA1"):
     to be used and follow the MMS format.
     Warns the user if there are missing datetimes.
 
-    Parameters
-    ----------
-    data_path: string
-        Absolute path to directory containing csvs with MMS data.
+    Args:
+      data_path: string
+          Absolute path to directory containing csvs with MMS data.
+      output_folder: string
+          Absolute path to directory where outputted csvs will be created.
+      output_prefix: string
+          Prefix for the filename of the outputted csvs.
+      region: string
+          RegionID for the desired region data.
 
-    output_folder: string
-        Absolute path to directory where outputted csvs will be created.
-
-    output_prefix: string
-        Prefix for the filename of the outputted csvs.
-
-    region: string
-        RegionID for the desired region data.
-
-    Returns
-    -------
-    None
-
+    Returns:
+      None
     """
 
     five_min_df = pd.DataFrame(
@@ -84,8 +78,8 @@ def consolidate_csvs(data_path, output_folder, output_prefix, region="SA1"):
                             five_min_df = five_min_df.append(data,
                                                              ignore_index=True)
                         elif freq == 30:
-                            thirty_min_df = thirty_min_df.append(data,
-                                                                 ignore_index=True)
+                            thirty_min_df = thirty_min_df.append(
+                                data, ignore_index=True)
                         else:
                             warnings.warn(
                                 "Unrecognized frequency in {}. Ignoring row.".
