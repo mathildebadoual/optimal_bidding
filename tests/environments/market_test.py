@@ -2,7 +2,8 @@ import unittest
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+sys.path.append(os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 
 from optimal_bidding.environments import energy_market
 
@@ -23,12 +24,16 @@ class TestAgent(unittest.TestCase):
         self.assertRaises(NotImplementedError, self._agent.bid())
 
 
-class TestPVAgent(unittest.TestCase):
-    def setUp(self)i:
-        self._pv_agent = energy_market.PVAgent()
+class TestFCASMarket(unittest.TestCase):
+    def setUp(self):
+        self._market = energy_market.FCASMarket()
 
-    def test_bid(self):
-        self._pv_agent.bid()
+    def test_create_agents(self):
+        pass
+
+    def test_compute_dispatch(self):
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()

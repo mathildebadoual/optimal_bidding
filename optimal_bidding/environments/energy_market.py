@@ -3,20 +3,64 @@
 import numpy as np
 import cvxpy as cvx
 
-from optimal_bidding.utils.data_postprocess import TransitionMap
+from optimal_bidding.environments.grid_scale_battery import Battery
 
 
-class EnergyMarket():
+class FCASMarket():
     def __init__(self):
-        pass
+        self._agents_dict = self._create_agents()
+        self._num_agents = 6
+        self._hour = 0
 
-    def step(self):
-        """Collects everyone bids and compute the dispatch
+    def _create_agents(self):
+        """Initialize the market
+        """
+        agents_dict = {}
+        # our battery is agent 0
+        agents_dict['agent_0'] = Battery
+        for i in range(self.num_agents):
+            agents_dict['agent_' + str(i)] = Agent()
+
+    def _get_energy(self, hour):
+        """From transition matrix
         """
         pass
 
-    def compute_dispatch(self):
-        pass
+    def step(self, battery_bid):
+        """Collects everyone bids and compute the dispatch
+        """
+        self.compute_dispatch(battery_bid.type())
+
+    def compute_dispatch(self, bid_type):
+        """Here is the optimization problem solving the
+        optimal dispatch problem
+        """
+        power_dispatched = cvx.Variable(self._num_agents)
+
+        power_max = cvx.Parameter(self._num_agents)
+        power_min = cvx.Parameter(self._num_agents)
+        cost = cvx.Parameter(self._num_agents)
+        demand = cvx.Parameter()
+
+        # call bids from agents
+        for i, agent_name in enumerate(self._agents_dict.keys()):
+            bid = self._agents_dict[agent_name].bid(bid_type=bid_type)
+            power_max[i] = bid.power()
+            cost[i] = bid.price()
+
+        # build constraints
+        constraint = [np.ones(self._num_agents).T * power_dispatched == demand]
+        for i in range(self._num_agents):
+            constraint += [power_dispatched[i] <= power_max[i]]
+            constraint += [power_min[i] <= power_dispatched[i]]
+
+        # build the objective
+        objective = cvx.Minimize(power_dispatched.T * cost)
+
+        # build objective
+        problem = cvx.Problem(objective, constraint)
+
+        return problem
 
 
 class Agent():
@@ -25,10 +69,11 @@ class Agent():
     def __init__(self):
         pass
 
-    def bid(self, time_step=0):
+    def bid(self, bid_type, time_step=0):
         """Computes the bid at certain time step
 
         Args:
+          bid_type: string 'raise' or 'low'
           time_step: timestamp UTC
 
         Return:
@@ -37,47 +82,15 @@ class Agent():
         raise NotImplementedError
 
 
-class PVAgent(Agent):
+class Agent1(Agent):
     def __init__(self):
         super().__init__()
-        self.pv_transition_map = TransitionMap("PV")
+        self._current_state = None  # TODO(Mathilde): initialize a state here
 
-    def sample_next_state_from_transition_matrix(self, previous_bid, hour):
-        """ return the value for the next bid by sampling from transition
-        matrix
-
-        Args:
-          previous_bid: what the last bid was
-          hour: which hour we are sampling for
-
-        Return:
-          next_state
+    def bid(bid_type, time_step=0):
+        """Creates a bid using the transition matrix.
         """
-
-        pv_hour_map = self.pv_transition_map.get_transition_map_hour(hour)
-
-        # Determine the place where it was for the last timestep
-        bids = list(pv_hour_map.columns)
-        bid_probabilities = pv_hour_map.loc[previous_bid]
-
-        # Sample a jump to the next state
-        next_state = np.random.choice(elements, p=bid_probabilities)
-        return next_state
-
-    def state_to_bid(hour):
-        # will fill this out when the Bid class is more filled out
-        # Bid.power() = sample_generation(hour)
         pass
-
-    def sample_generation(hour):
-        """samples a day of solar generation from a year; see utils
-        fuction sample_day_solar_generation(month) for more info
-
-        Currently assumes that we'll stick with a single month.
-
-        """
-        generation_curve = sample_day_solar_generation(6)
-        return generation_curve["kW"][hour]
 
 
 class Bid():
@@ -86,9 +99,16 @@ class Bid():
     def __init__(self, power_bid, price_bid):
         self._power_bid = power_bid
         self._price_bid = price_bid
+        if self._power_bid <= 0:
+            self._bid_type = 'low'
+        else:
+            self._bid_type = 'raise'
 
     def power(self):
         return self._power_bid
 
     def price(self):
         return self._price_bid
+
+    def type(self):
+        return self._bid_type

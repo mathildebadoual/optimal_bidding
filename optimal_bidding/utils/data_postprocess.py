@@ -5,10 +5,18 @@ import numpy as np
 from datetime import timedelta, datetime
 from collections import OrderedDict
 
+directory_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+CSV_PATH = os.path.join(directory_path, '/static/consolidated_data/')
+
 
 def round_to_nearest(x, base):
     # helper function to bin values
     return base * np.round(x / base)
+
+
+def get_price(hour, simulation='test'):
+    # assume we always want "SA1"
+    df = pd.read_csv(CSV_PATH, index_col=["Timestamp"], parse_dates=True)
 
 
 def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):
@@ -75,9 +83,9 @@ def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):
 
 
 class TransitionMap():
-    def __init__(self, csv_path, datatype="Price", bin_size=10, timestep=30):
+    def __init__(self, datatype="Price", bin_size=10, timestep=30):
         self._transition_maps = self._load_transition_map_from_csv(
-            csv_path, datatype, bin_size, timestep)
+            datatype, bin_size, timestep)
 
     def get_transition_map_hour(self, hour):
         """Get the transition map for a specific hour
@@ -136,13 +144,11 @@ class TransitionMap():
             if r <= cumulative:
                 return state
 
-    def _load_transition_map_from_csv(self, csv_path, datatype, bin_size,
+    def _load_transition_map_from_csv(self, datatype, bin_size,
                                       timestep):
         """Load the CSV transition maps
 
         Args:
-          csv_path: string
-              Path to csv holding data
           datatype: string
               The type of data that the transition map is supposed to reflect.
               Corresponds to a column name in the csv.
@@ -166,10 +172,7 @@ class TransitionMap():
                     probabilities.
         """
 
-        # assume we always want "SA1"
-        df = pd.read_csv(csv_path, index_col=["Timestamp"], parse_dates=True)
-        # filter for region
-        df = df[df["Region"] == 'SA1']
+        df = pd.read_csv(CSV_PATH, index_col=["Timestamp"], parse_dates=True)
         transition_maps = get_transition_probabilities(df, datatype, bin_size,
                                                        timestep)
         return transition_maps
