@@ -6,7 +6,7 @@ from datetime import timedelta, datetime
 from collections import OrderedDict
 
 directory_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-CSV_PATH = os.path.join(directory_path, '/static/consolidated_data/')
+CSV_PATH = os.path.join(directory_path, 'static/consolidated_data/')
 
 
 def round_to_nearest(x, base):
@@ -14,9 +14,42 @@ def round_to_nearest(x, base):
     return base * np.round(x / base)
 
 
-def get_price(hour, simulation='test'):
-    # assume we always want "SA1"
-    df = pd.read_csv(CSV_PATH, index_col=["Timestamp"], parse_dates=True)
+def get_energy_price(timestamp):
+    """Return the price from the AEMO data
+
+    Args:
+      timestamp: Timestamp
+
+    Return:
+      price: float
+    """
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+            lambda x: pd.to_datetime(
+                x,
+                format='%Y-%m-%d %H:%M:%S',
+                errors='ignore'))
+    return df_30min[df_30min['Timestamp'] == timestamp]['Price'].values[0]
+
+
+def get_demand(timestamp):
+    """Return the demand from the AEMO data
+
+    Args:
+      timestamp: Timestamp
+
+    Return:
+      demand: float
+    """
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+            lambda x: pd.to_datetime(
+                x,
+                format='%Y-%m-%d %H:%M:%S',
+                errors='ignore'))
+    return df_30min[df_30min['Timestamp'] == timestamp]['Demand'].values[0]
 
 
 def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):

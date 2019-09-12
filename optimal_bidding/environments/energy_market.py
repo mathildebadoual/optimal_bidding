@@ -2,38 +2,64 @@
 
 import numpy as np
 import cvxpy as cvx
+import pandas as pd
 
-from optimal_bidding.environments.grid_scale_battery import Battery
+from optimal_bidding.environments.agents import Battery, AgentRandom
+from optimal_bidding.utils.data_postprocess import get_demand, get_energy_price
 
 
 class FCASMarket():
     def __init__(self):
-        self._agents_dict = self._create_agents()
         self._num_agents = 6
-        self._hour = 0
+        self._agents_dict = self._create_agents()
+        self._start_timestamp = pd.Timestamp(year=2018,
+                                             month=6,
+                                             day=1,
+                                             hour=4,
+                                             minute=30)
+        self._end_timestamp = pd.Timestamp(year=2018,
+                                           month=7,
+                                           day=1,
+                                           hour=4,
+                                           minute=30)
+        self._timestamp = self._start_timestamp
 
     def _create_agents(self):
         """Initialize the market
         """
         agents_dict = {}
         # our battery is agent 0
-        agents_dict['agent_0'] = Battery
-        for i in range(self.num_agents):
-            agents_dict['agent_' + str(i)] = Agent()
+        self._battery = Battery()
+        for i in range(self._num_agents - 1):
+            agents_dict['agent_' + str(i)] = AgentRandom()
+        return agents_dict
 
     def _get_energy(self, hour):
         """From transition matrix
         """
         pass
 
-    def step(self, battery_bid):
+    def step(self):
         """Collects everyone bids and compute the dispatch
         """
-        self.compute_dispatch(battery_bid.type())
+        battery_bid = self._battery.bid(get_energy_price(self._timestamp))
+        power, clearing_price = self.compute_dispatch(battery_bid)
+        self._battery.step(power, clearing_price)
+        self._timestamp += pd.Timedelta('30 min')
+        if self._timestamp > self._end_timestamp:
+            return False
+        return True
 
-    def compute_dispatch(self, bid_type):
+    def compute_dispatch(self, battery_bid):
         """Here is the optimization problem solving the
         optimal dispatch problem
+
+        Args:
+          battery_bid: Bid object
+
+        Return:
+          power_cleared = float
+          clearing_price = float
         """
         power_dispatched = cvx.Variable(self._num_agents)
 
@@ -42,11 +68,24 @@ class FCASMarket():
         cost = cvx.Parameter(self._num_agents)
         demand = cvx.Parameter()
 
+        # get data from AEMO file
+        demand = get_demand(self._timestamp)
+
         # call bids from agents
+        power_max_np = np.zeros(self._num_agents)
+        cost_np = np.zeros(self._num_agents)
         for i, agent_name in enumerate(self._agents_dict.keys()):
-            bid = self._agents_dict[agent_name].bid(bid_type=bid_type)
-            power_max[i] = bid.power()
-            cost[i] = bid.price()
+            bid = self._agents_dict[agent_name].bid()
+            power_max_np[i] = bid.power()
+            cost_np[i] = bid.price()
+
+        # add battery bid
+        power_max_np[-1] = battery_bid.power()
+        cost_np[-1] = battery_bid.price()
+
+        power_max.value = power_max_np
+        cost.value = cost_np
+        power_min.value = np.zeros(self._num_agents)
 
         # build constraints
         constraint = [np.ones(self._num_agents).T * power_dispatched == demand]
@@ -60,55 +99,16 @@ class FCASMarket():
         # build objective
         problem = cvx.Problem(objective, constraint)
 
-        return problem
+        # solve problem
+        problem.solve(verbose=False)
 
+        power_cleared = power_dispatched.value[-1]
 
-class Agent():
-    """Agent parent class, all the other ch
-    """
-    def __init__(self):
-        pass
+        # compute clearing price
+        possible_costs = []
+        for i, power in enumerate(power_dispatched.value):
+            if power > 1e-5:
+                possible_costs.append(cost.value[i])
+        clearing_price = np.max(possible_costs)
 
-    def bid(self, bid_type, time_step=0):
-        """Computes the bid at certain time step
-
-        Args:
-          bid_type: string 'raise' or 'low'
-          time_step: timestamp UTC
-
-        Return:
-          bid: Bid object
-        """
-        raise NotImplementedError
-
-
-class Agent1(Agent):
-    def __init__(self):
-        super().__init__()
-        self._current_state = None  # TODO(Mathilde): initialize a state here
-
-    def bid(bid_type, time_step=0):
-        """Creates a bid using the transition matrix.
-        """
-        pass
-
-
-class Bid():
-    """Bid object so all bids have the same format
-    """
-    def __init__(self, power_bid, price_bid):
-        self._power_bid = power_bid
-        self._price_bid = price_bid
-        if self._power_bid <= 0:
-            self._bid_type = 'low'
-        else:
-            self._bid_type = 'raise'
-
-    def power(self):
-        return self._power_bid
-
-    def price(self):
-        return self._price_bid
-
-    def type(self):
-        return self._bid_type
+        return power_cleared, clearing_price
