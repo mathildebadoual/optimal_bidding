@@ -5,7 +5,7 @@ from os.path import isfile, join, abspath, dirname
 import warnings
 
 
-def consolidate_csvs(data_path, output_folder, output_prefix, region="SA1"):
+def consolidate_csvs(data_path, output_folder, output_prefix, price_column_name = "RRP", region="SA1"):
     """
     Takes a folder with MMS csvs and create a new csv
     with just the demand and energy data.
@@ -57,7 +57,7 @@ def consolidate_csvs(data_path, output_folder, output_prefix, region="SA1"):
                     # header row (sometimes the format of the csv changes
                     # in the middle so there can be multiple header rows)
                     demand_index = row.index("TOTALDEMAND")
-                    price_index = row.index("RRP")
+                    price_index = row.index(price_column_name)
                     timestamp_index = row.index("SETTLEMENTDATE")
                     region_index = row.index("REGIONID")
                     if row[1] == "DREGION":
@@ -107,10 +107,52 @@ def consolidate_csvs(data_path, output_folder, output_prefix, region="SA1"):
     thirty_min_df.to_csv(join(output_folder, output_prefix + "_30min.csv"))
 
 
+
+
+
+
+
 if __name__ == '__main__':
     dir_path = dirname(dirname(abspath(__file__)))
     static_path = join(dir_path, 'static')
     output_folder = join(static_path, 'consolidated_data')
-    data_path = join(static_path, 'PUBLIC_PRICES_20180601')
-    output_prefix = 'June2018'
-    consolidate_csvs(data_path, output_folder, output_prefix, region="SA1")
+    energy_path = join(static_path, 'PUBLIC_PRICES_20180601')
+    energy_output_prefix = 'EnergyJune2018'
+
+    # consolidate_csvs(energy_path, 
+    #     output_folder, 
+    #     energy_output_prefix, 
+    #     "RRP",
+    #     region="SA1")
+    
+    fcas_path = static_path
+    fcas_raise_output_prefix = 'FcasRaiseJune2018'
+    fcas_low_output_prefix = 'FcasLowJune2018'
+
+    consolidate_csvs(fcas_path,
+        output_folder,
+        fcas_raise_output_prefix,
+        "RAISE5MINRRP",
+        region="SA1")
+
+    consolidate_csvs(fcas_path,
+        output_folder,
+        fcas_low_output_prefix,
+        "LOWER5MINRRP",
+        region="SA1")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

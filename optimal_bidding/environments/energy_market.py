@@ -25,7 +25,13 @@ class FCASMarket():
         self._timestamp = self._start_timestamp
 
     def _create_agents(self):
-        """Initialize the market
+        """Initialize the market agents
+
+        Args:
+          None
+
+        Return:
+          agent_dict: dictionary of the agents
         """
         agents_dict = {}
         # our battery is agent 0
@@ -33,11 +39,6 @@ class FCASMarket():
         for i in range(self._num_agents - 1):
             agents_dict['agent_' + str(i)] = AgentRandom()
         return agents_dict
-
-    def _get_energy(self, hour):
-        """From transition matrix
-        """
-        pass
 
     def step(self):
         """Collects everyone bids and compute the dispatch
@@ -55,7 +56,7 @@ class FCASMarket():
         optimal dispatch problem
 
         Args:
-          battery_bid: Bid object
+          battery_bid: Bid object, bid from the battery
 
         Return:
           power_cleared = float
@@ -102,6 +103,7 @@ class FCASMarket():
         # solve problem
         problem.solve(verbose=False)
 
+        # get the power cleared for the battery
         power_cleared = power_dispatched.value[-1]
 
         # compute clearing price

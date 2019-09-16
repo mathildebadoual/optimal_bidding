@@ -50,44 +50,101 @@ def get_demand(timestamp):
                 errors='ignore'))
     return df_30min[df_30min['Timestamp'] == timestamp]['Demand'].values[0]
 
-def get_energy_price_day_ahead(timestamp):
+
+def get_demand(timestamp):
+    """Return the raise prices from the AEMO data
+
+    Args:
+      timestamp: Timestamp
+
+    Return:
+      demand: float
+    """
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+            lambda x: pd.to_datetime(
+                x,
+                format='%Y-%m-%d %H:%M:%S',
+                errors='ignore'))
+    return df_30min[df_30min['Timestamp'] == timestamp]['Demand'].values[0]
+
+
+def get_demand(timestamp):
+    """Return the low prices from the AEMO data
+
+    Args:
+      timestamp: Timestamp
+
+    Return:
+      demand: float
+    """
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+            lambda x: pd.to_datetime(
+                x,
+                format='%Y-%m-%d %H:%M:%S',
+                errors='ignore'))
+    return df_30min[df_30min['Timestamp'] == timestamp]['Demand'].values[0]
+
+
+
+def get_energy_price_day_ahead(timestamp, horizon=48):
     """Call "get_energy_prices" for a whole day and return the time series.
     Here I assume that timestamp is not less than a whole day away from the end of the csv  
-    """
-    last_day_of_June = pd.Timestamp(year=2018,
-                                             month=6,
-                                             day=30,
-                                             hour=0,
-                                             minute=30)        
-    energy_price_values = []
-    r = range(0,47)
+    
+    Args:
+      timestamp: Timestamp of the start date
+      horizon: non neg integer of number of time step 
 
-    if timestamp>last_day_of_June:
-      r = (-47,0)
+    Return:
+      energy_price_values: numpy.Array of size horizon
+    """
+    last_day_of_June = pd.Timestamp(
+      year=2018,
+      month=6,
+      day=30,
+      hour=0,
+      minute=30,
+      )        
+    energy_price_values = []
+    r = range(horizon)
+
+    if timestamp > last_day_of_June:
+      r = (- horizon, 0)
 
     for i in r:
-      timestamp_i = timestamp+timedelta(minutes = 30*i)
+      timestamp_i = timestamp + timedelta(minutes=30*i)
       energy_price_values.append(get_energy_price(timestamp_i))
 
-    return energy_price_values
+    return np.array(energy_price_values)
 
-def get_energy_demand_day_ahead(timestamp):
+
+def get_energy_demand_day_ahead(timestamp, horizon=48):
     """Call "get_energy_demand" for a whole day and return the time series 
+        Args:
+      timestamp: Timestamp of the start date
+      horizon: non neg integer of number of time step 
+
+    Return:
+      energy_price_values: numpy.Array of size horizon
     """
-    last_day_of_June = pd.Timestamp(year=2018,
-                                    month=6,
-                                    day=30,
-                                    hour=0,
-                                    minute=30)
+    last_day_of_June = pd.Timestamp(
+      year=2018,
+      month=6,
+      day=30,
+      hour=0,
+      minute=30,
+      )        
+    energy_price_values = []
+    r = range(horizon)
 
-    energy_demand_values = []
-    r = range(0,47)
-
-    if timestamp>last_day_of_June:
-      r = (-47,0)
+    if timestamp > last_day_of_June:
+      r = (- horizon, 0)
 
     for i in r:
-      timestamp_i = timestamp+timedelta(minutes = 30*i)
+      timestamp_i = timestamp + timedelta(minutes=30*i)
       energy_demand_values.append(get_demand(timestamp_i))
 
     return energy_demand_values
