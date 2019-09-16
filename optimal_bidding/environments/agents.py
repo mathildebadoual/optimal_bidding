@@ -1,4 +1,5 @@
 import numpy as np
+import cvxpy as cvx
 
 
 class Agent():
@@ -21,18 +22,26 @@ class Agent():
 
 class Battery(Agent):
     def __init__(self):
-        self.total_capacity = 129  # MWh
-        self.max_power = 100  # MW
-        self.efficiency = 0.98  # percent
-        self.min_power = - 100  # MW
+        self._total_capacity = 129  # MWh
+        self._max_power = 100  # MW
+        self._efficiency = 0.98  # percent
+        self._min_power = - 100  # MW
         self._energy = 50
-        self.ratio_fcast = 0.8
+        self._ratio_fcast = 0.8
+
+        # for optimization
+        self._horizon = 48  # steps so 24 hours
 
     def step(self, cleared_power, fcast_cleared_power):
         # add power used for the energy market
-        self._energy += self.efficiency * cleared_power
-        # add power used for the fcast market
-        self._energy += self.ratio_fcast * fcast_cleared_power
+        new_energy = self._energy + self._efficiency * cleared_power + \
+                self._ratio_fcast * fcast_cleared_power
+        if new_energy > self._max_power:
+            self._energy = self._max_power
+        if new_energy < self._min_power:
+            self._energy = self._min_power
+        else:
+            self._energy = new_energy
 
     def get_energy(self):
         return self._energy
@@ -45,7 +54,21 @@ class Battery(Agent):
           bid: Bid object
         """
 
+        self._solve_optimal_bidding_mpc(
+                energy_price,
+                low_price,
+                raise_price
+                )
+
         return Bid(10, 0)
+
+    def _solve_optimal_bidding_mps(self, energy_price, low_price, raise_price):
+        s_raise = cvx.Variable(self._horizon)
+        s_low = cvx.Variable(self._horizon)
+        p_gen = cvx.Variable(self._horizon)
+        p_load = cvx.Variable(self._horizon)
+
+
 
 
 class AgentRandom(Agent):
