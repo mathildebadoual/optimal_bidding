@@ -95,7 +95,7 @@ class Battery(Agent):
         soe = cvx.Variable(self._horizon)
         m = cvx.Variable(self._horizon, boolean=True)
 
-        # constraints 
+        # constraints
         constraints = []
 
         for t in range(self._horizon - 1):
@@ -141,12 +141,12 @@ class AgentRandom(Agent):
 
 class AgentBaseload(AgentRandom):
     def bid(self, timestamp=0):
-        """Creates a bid that is meant to be flat and low. 
-        (Do we need this agent in addition to the AgentRandom, given that it will return the 
+        """Creates a bid that is meant to be flat and low.
+        (Do we need this agent in addition to the AgentRandom, given that it will return the
         same price once that's initialized?)
         """
-        return Bid(self._random_power, 500) 
- 
+        return Bid(self._random_power, 500)
+
 
 class AgentNaturalGas(AgentRandom):
     """ This agent will take in the expected energy price and invert it, and multiply it by their bid
@@ -160,7 +160,7 @@ class AgentNaturalGas(AgentRandom):
     def bid(self, timestamp=0):
         energy_price = data.get_energy_price(timestamp)
         energy_prices = data.get_energy_price_day_ahead(timestamp, horizon=self._horizon)
-        max_energy_price = max(energy_prices) 
+        max_energy_price = max(energy_prices)
         inverted_multiplier = 1 - energy_price / max_energy_price
         return Bid(self._random_power, self._random_price * inverted_multiplier)
 
@@ -177,7 +177,7 @@ class AgentNaturalGas2(AgentRandom):
     def bid(self, timestamp=0):
         energy_demand = data.get_energy_demand(timestamp)
         energy_demands = data.get_energy_demand_day_ahead(timestamp, horizon=self._horizon)
-        max_energy_demand = max(energy_demands) 
+        max_energy_demand = max(energy_demands)
         inverted_multiplier = 1 - energy_demand / max_energy_price
         return Bid(self._random_power * inverted_multiplier, self._random_price)
 
