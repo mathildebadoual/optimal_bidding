@@ -6,6 +6,7 @@ sys.path.append(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from optimal_bidding.environments.energy_market import FCASMarket
 from optimal_bidding.environments.agents import Battery
+from optimal_bidding.utils.nets import ActorNet, CriticNet
 import optimal_bidding.utils.data_postprocess as data_utils
 
 
@@ -17,6 +18,46 @@ def main():
     critic_step_size = 0.01
     discount_factor = 0.95
     eligibility_trace_decay_factor = 0.7
+
+
+def reward_function(battery, bid_fcas, bid_energy, energy_cleared_price, fcas_cleared_power):
+    # assume the markets are pay-as-bid
+    # assume the energy market always clears your bid
+    energy_cleared_power = bid_energy.power_signed()
+    energy_bid_price = bid_energy.price()
+
+    fcas_cleared_price = bid_fcas.price()
+    fcas_bid_power = bid_fcas.power_signed()
+
+    # bare bones reward function
+    reward = -energy_cleared_power * energy_cleared_price + 0.9 * fcas_cleared_power * fcas_cleared_price
+
+    soe = battery.get_soe()
+    total_capacity = battery._total_capacity
+    max_power = battery._max_power
+    max_ramp = battery._max_ramp
+
+    new_energy = soe + battery._efficiency * energy_cleared_power + \
+            battery._ratio_fcast * fcas_cleared_power
+
+    # weight the constraints by how 'much' the constraint is violated multiplied by some scalar. this can be changed.
+    # only punish if bounds on capacity, power, or ramp are violated.
+    penalty = 50
+
+    if new_energy > total_capacity:
+        reward -= penalty * (new_energy - total_capacity)
+    if new_energy < 0:
+        reward -= penalty * (-new_energy)
+    if -fcas_bid_power > max_ramp:
+        reward -= penalty * fcas_bid_power
+    # penalize "low" fcas bids
+    if fcas_bid_power > 0:
+        reward -= penalty * fcas_bid_power
+    if -fcas_bid_power > max_ramp:
+        reward -= penalty * (-fcas_bid_power - max_ramp)
+    if -energy_cleared_power  > max_power:
+        reward -= penalty * (-energy_cleared_power - max_power)
+    return reward
 
 
 def run_simulation():
