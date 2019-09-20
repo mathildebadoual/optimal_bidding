@@ -137,13 +137,15 @@ class Battery(Agent):
 
         # objective
         objective = cvx.Maximize(
-                energy_price * (p_gen - p_load) + 2 * raise_price * s_raise)
+                energy_price * (p_gen - p_load) + 0.9 * raise_price * s_raise)
 
         # solve problem
         problem = cvx.Problem(objective, constraints)
         problem.solve()
 
         return [0.0], m.value, p_gen.value, p_load.value, s_raise.value, None
+
+
 
 
 class AgentRandom(Agent):
