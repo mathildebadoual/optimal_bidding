@@ -26,11 +26,11 @@ def get_energy_price(timestamp):
     df_path = CSV_PATH + 'June2018_30min.csv'
     df_30min = pd.read_csv(df_path)
     df_30min['Timestamp'] = df_30min['Timestamp'].apply(
-            lambda x: pd.to_datetime(
-                x,
-                format='%Y-%m-%d %H:%M:%S',
-                errors='ignore'))
-    return df_30min[df_30min['Timestamp'] == timestamp]['Energy_Price'].values[0]
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[df_30min['Timestamp'] ==
+                    timestamp]['Energy_Price'].values[0]
+
 
 def get_energy_demand(timestamp):
     """Return the demand from the AEMO data
@@ -44,11 +44,10 @@ def get_energy_demand(timestamp):
     df_path = CSV_PATH + 'June2018_30min.csv'
     df_30min = pd.read_csv(df_path)
     df_30min['Timestamp'] = df_30min['Timestamp'].apply(
-            lambda x: pd.to_datetime(
-                x,
-                format='%Y-%m-%d %H:%M:%S',
-                errors='ignore'))
-    return df_30min[df_30min['Timestamp'] == timestamp]['Energy_Demand'].values[0]
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[df_30min['Timestamp'] ==
+                    timestamp]['Energy_Demand'].values[0]
 
 
 def get_raise_demand(timestamp):
@@ -63,11 +62,10 @@ def get_raise_demand(timestamp):
     df_path = CSV_PATH + 'June2018_30min.csv'
     df_30min = pd.read_csv(df_path)
     df_30min['Timestamp'] = df_30min['Timestamp'].apply(
-            lambda x: pd.to_datetime(
-                x,
-                format='%Y-%m-%d %H:%M:%S',
-                errors='ignore'))
-    return df_30min[df_30min['Timestamp'] == timestamp]['5min_Raise_Demand'].values[0]
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[df_30min['Timestamp'] ==
+                    timestamp]['5min_Raise_Demand'].values[0]
 
 
 def get_raise_price(timestamp):
@@ -82,11 +80,10 @@ def get_raise_price(timestamp):
     df_path = CSV_PATH + 'June2018_30min.csv'
     df_30min = pd.read_csv(df_path)
     df_30min['Timestamp'] = df_30min['Timestamp'].apply(
-            lambda x: pd.to_datetime(
-                x,
-                format='%Y-%m-%d %H:%M:%S',
-                errors='ignore'))
-    return df_30min[df_30min['Timestamp'] == timestamp]['5min_Raise_Price'].values[0]
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[df_30min['Timestamp'] ==
+                    timestamp]['5min_Raise_Price'].values[0]
 
 
 def get_low_demand(timestamp):
@@ -125,40 +122,9 @@ def get_low_price(timestamp):
                     timestamp]['5min_Lower_Price'].values[0]
 
 
-def get_energy_price_day_ahead(timestamp, horizon=48):
-    """Call "get_energy_prices" for a whole day and return the time series.
-    Here I assume that timestamp is not less than a whole day away from the end of the csv
-
-    Args:
-      timestamp: Timestamp of the start date
-      horizon: non neg integer of number of time step
-
-    Return:
-      energy_price_values: numpy.Array of size horizon
+def get_energy_price_day_ahead(start_timestamp, horizon=48):
     """
-    last_day_of_June = pd.Timestamp(
-      year=2018,
-      month=6,
-      day=30,
-      hour=0,
-      minute=30,
-      )
-    energy_price_values = []
-    r = range(horizon)
-
-    if timestamp > last_day_of_June:
-        r = (- horizon, 0)
-
-    for i in r:
-        timestamp_i = timestamp + timedelta(minutes=30*i)
-        energy_price_values.append(get_energy_price(timestamp_i))
-
-    return np.array(energy_price_values)
-
-
-def get_energy_demand_day_ahead(timestamp, horizon=48):
-    """Call "get_energy_demand" for a whole day and return the time series
-        Args:
+    Args:
       timestamp: Timestamp of the start date
       horizon: non neg integer of number of time step
 
@@ -172,17 +138,186 @@ def get_energy_demand_day_ahead(timestamp, horizon=48):
         hour=0,
         minute=30,
     )
-    energy_price_values = []
-    r = range(horizon)
+    minutes = horizon * 30
+    time_48_steps = pd.Timedelta(str(minutes) + ' min')
+    end_timestamp = start_timestamp + time_48_steps
 
-    if timestamp > last_day_of_June:
-        r = (-horizon, 0)
+    if end_timestamp > last_day_of_June:
+        end_timestamp = last_day_of_June
 
-    for i in r:
-        timestamp_i = timestamp + timedelta(minutes=30 * i)
-        energy_demand_values.append(get_demand(timestamp_i))
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[
+        (df_30min['Timestamp'] >= start_timestamp)
+        & (df_30min['Timestamp'] < end_timestamp)]['Energy_Price'].values
 
-    return energy_demand_values
+
+def get_energy_demand_day_ahead(start_timestamp, horizon=48):
+    """
+    Args:
+      timestamp: Timestamp of the start date
+      horizon: non neg integer of number of time step
+
+    Return:
+      energy_price_values: numpy.Array of size horizon
+    """
+    last_day_of_June = pd.Timestamp(
+        year=2018,
+        month=6,
+        day=30,
+        hour=0,
+        minute=30,
+    )
+    minutes = horizon * 30
+    time_48_steps = pd.Timedelta(str(minutes) + ' min')
+    end_timestamp = start_timestamp + time_48_steps
+
+    if end_timestamp > last_day_of_June:
+        end_timestamp = last_day_of_June
+
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[
+        (df_30min['Timestamp'] >= start_timestamp)
+        & (df_30min['Timestamp'] < end_timestamp)]['Energy_Demand'].values
+
+
+def get_raise_demand_day_ahead(start_timestamp, horizon=48):
+    """
+    Args:
+      timestamp: Timestamp of the start date
+      horizon: non neg integer of number of time step
+
+    Return:
+      energy_price_values: numpy.Array of size horizon
+    """
+    last_day_of_June = pd.Timestamp(
+        year=2018,
+        month=6,
+        day=30,
+        hour=0,
+        minute=30,
+    )
+    minutes = horizon * 30
+    time_48_steps = pd.Timedelta(str(minutes) + ' min')
+    end_timestamp = start_timestamp + time_48_steps
+
+    if end_timestamp > last_day_of_June:
+        end_timestamp = last_day_of_June
+
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[
+        (df_30min['Timestamp'] >= start_timestamp)
+        & (df_30min['Timestamp'] < end_timestamp)]['5min_Raise_Demand'].values
+
+
+def get_raise_price_day_ahead(start_timestamp, horizon=48):
+    """
+    Args:
+      timestamp: Timestamp of the start date
+      horizon: non neg integer of number of time step
+
+    Return:
+      energy_price_values: numpy.Array of size horizon
+    """
+    last_day_of_June = pd.Timestamp(
+        year=2018,
+        month=6,
+        day=30,
+        hour=0,
+        minute=30,
+    )
+    minutes = horizon * 30
+    time_48_steps = pd.Timedelta(str(minutes) + ' min')
+    end_timestamp = start_timestamp + time_48_steps
+
+    if end_timestamp > last_day_of_June:
+        end_timestamp = last_day_of_June
+
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[
+        (df_30min['Timestamp'] >= start_timestamp)
+        & (df_30min['Timestamp'] < end_timestamp)]['5min_Raise_Price'].values
+
+
+def get_low_price_day_ahead(start_timestamp, horizon=48):
+    """
+    Args:
+      timestamp: Timestamp of the start date
+      horizon: non neg integer of number of time step
+
+    Return:
+      energy_price_values: numpy.Array of size horizon
+    """
+    last_day_of_June = pd.Timestamp(
+        year=2018,
+        month=6,
+        day=30,
+        hour=0,
+        minute=30,
+    )
+    minutes = horizon * 30
+    time_48_steps = pd.Timedelta(str(minutes) + ' min')
+    end_timestamp = start_timestamp + time_48_steps
+
+    if end_timestamp > last_day_of_June:
+        end_timestamp = last_day_of_June
+
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[
+        (df_30min['Timestamp'] >= start_timestamp)
+        & (df_30min['Timestamp'] < end_timestamp)]['5min_Lower_Price'].values
+
+
+def get_low_demand_day_ahead(start_timestamp, horizon=48):
+    """
+    Args:
+      timestamp: Timestamp of the start date
+      horizon: non neg integer of number of time step
+
+    Return:
+      energy_price_values: numpy.Array of size horizon
+    """
+    last_day_of_June = pd.Timestamp(
+        year=2018,
+        month=6,
+        day=30,
+        hour=0,
+        minute=30,
+    )
+    minutes = horizon * 30
+    time_48_steps = pd.Timedelta(str(minutes) + ' min')
+    end_timestamp = start_timestamp + time_48_steps
+
+    if end_timestamp > last_day_of_June:
+        end_timestamp = last_day_of_June
+
+    df_path = CSV_PATH + 'June2018_30min.csv'
+    df_30min = pd.read_csv(df_path)
+    df_30min['Timestamp'] = df_30min['Timestamp'].apply(
+        lambda x: pd.to_datetime(
+            x, format='%Y-%m-%d %H:%M:%S', errors='ignore'))
+    return df_30min[
+        (df_30min['Timestamp'] >= start_timestamp)
+        & (df_30min['Timestamp'] < end_timestamp)]['5min_Lower_Demand'].values
 
 
 def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):

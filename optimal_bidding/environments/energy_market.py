@@ -4,8 +4,8 @@ import numpy as np
 import cvxpy as cvx
 import pandas as pd
 
-from optimal_bidding.environments.agents import Battery, AgentRandom
-from optimal_bidding.utils.data_postprocess import get_demand, get_energy_price
+from optimal_bidding.environments.agents import AgentRandom
+import optimal_bidding.utils.data_postprocess as data_utils
 
 
 class FCASMarket():
@@ -24,6 +24,9 @@ class FCASMarket():
                                            minute=30)
         self._timestamp = self._start_timestamp
 
+    def get_timestamp(self):
+        return self._timestamp
+
     def _create_agents(self):
         """Initialize the market agents
 
@@ -34,22 +37,24 @@ class FCASMarket():
           agent_dict: dictionary of the agents
         """
         agents_dict = {}
-        # our battery is agent 0
-        self._battery = Battery()
         for i in range(self._num_agents - 1):
             agents_dict['agent_' + str(i)] = AgentRandom()
         return agents_dict
 
-    def step(self):
+    def step(self, battery_bid):
         """Collects everyone bids and compute the dispatch
         """
-        battery_bid = self._battery.bid(get_energy_price(self._timestamp))
-        power, clearing_price = self.compute_dispatch(battery_bid)
-        self._battery.step(power, clearing_price)
+        power_cleared, clearing_price = self.compute_dispatch(battery_bid)
         self._timestamp += pd.Timedelta('30 min')
+
+        state = [power_cleared, clearing_price]
         if self._timestamp > self._end_timestamp:
-            return False
-        return True
+            end = True
+        else:
+            end = False
+        state += [end]
+
+        return np.array(state)
 
     def compute_dispatch(self, battery_bid):
         """Here is the optimization problem solving the
@@ -70,7 +75,10 @@ class FCASMarket():
         demand = cvx.Parameter()
 
         # get data from AEMO file
-        demand = get_demand(self._timestamp)
+        if battery_bid.type() == 'load':
+            demand = data_utils.get_low_demand(self._timestamp)
+        else:
+            demand = data_utils.get_raise_demand(self._timestamp)
 
         # call bids from agents
         power_max_np = np.zeros(self._num_agents)
@@ -112,5 +120,8 @@ class FCASMarket():
             if power > 1e-5:
                 possible_costs.append(cost.value[i])
         clearing_price = np.max(possible_costs)
+
+        if battery_bid.type() == 'gen':
+            power_cleared = - power_cleared
 
         return power_cleared, clearing_price
