@@ -102,8 +102,8 @@ def consolidate_csvs(energy_data_path, fcas_data_path, output_folder, output_pre
                         "Unrecognized row type in {}. Ignoring.".format(
                             csv_name), UserWarning)
     # drop duplicates
-    five_min_df = five_min_df.drop_duplicates()
-    thirty_min_df = thirty_min_df.drop_duplicates()
+    five_min_df = five_min_df.drop_duplicates(subset="Timestamp")
+    thirty_min_df = thirty_min_df.drop_duplicates(subset="Timestamp")
     
     # set index
     five_min_df = five_min_df.set_index("Timestamp")
@@ -166,7 +166,7 @@ def consolidate_csvs(energy_data_path, fcas_data_path, output_folder, output_pre
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    fcas_df = fcas_df.drop_duplicates()
+    fcas_df = fcas_df.drop_duplicates(subset="Timestamp")
     fcas_df = fcas_df.set_index("Timestamp")
     fcas_df = fcas_df.sort_index()
 
