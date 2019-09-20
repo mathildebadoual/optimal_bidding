@@ -4,13 +4,13 @@ import numpy as np
 import cvxpy as cvx
 import pandas as pd
 
-from optimal_bidding.environments.agents import AgentRandom
+from optimal_bidding.environments.agents import AgentDeterministic
 import optimal_bidding.utils.data_postprocess as data_utils
 
 
 class FCASMarket():
     def __init__(self):
-        self._num_agents = 6
+        self._num_agents = 10
         self._agents_dict = self._create_agents()
         self._start_timestamp = pd.Timestamp(year=2018,
                                              month=6,
@@ -37,8 +37,16 @@ class FCASMarket():
           agent_dict: dictionary of the agents
         """
         agents_dict = {}
-        for i in range(self._num_agents - 1):
-            agents_dict['agent_' + str(i)] = AgentRandom()
+
+        agents_dict['agent_0'] = AgentDeterministic(5, 5)
+        agents_dict['agent_1'] = AgentDeterministic(9, 7)
+        agents_dict['agent_2'] = AgentDeterministic(11, 2)
+        agents_dict['agent_3'] = AgentDeterministic(15, 7)
+        agents_dict['agent_3'] = AgentDeterministic(19, 5)
+        agents_dict['agent_4'] = AgentDeterministic(20, 6)
+        agents_dict['agent_7'] = AgentDeterministic(83, 30)
+        agents_dict['agent_8'] = AgentDeterministic(100, 1000)
+
         return agents_dict
 
     def step(self, battery_bid):
@@ -114,12 +122,19 @@ class FCASMarket():
         # get the power cleared for the battery
         power_cleared = power_dispatched.value[-1]
 
+        # for i, name_agent in enumerate(self._agents_dict.keys()):
+        #     print('agent_name: %s' % name_agent)
+        #     print('power_dispatch: %s' % power_dispatched.value[i])
+        #     print('cost: %s' % cost_np[i])
+
         # compute clearing price
         possible_costs = []
         for i, power in enumerate(power_dispatched.value):
-            if power > 1e-5:
+            if abs(power) > 1e-2:
                 possible_costs.append(cost.value[i])
         clearing_price = np.max(possible_costs)
+
+        # print('clearing_price: %s' % clearing_price)
 
         if battery_bid.type() == 'gen':
             power_cleared = - power_cleared

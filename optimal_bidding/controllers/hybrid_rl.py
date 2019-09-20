@@ -10,11 +10,13 @@ import optimal_bidding.utils.data_postprocess as data_utils
 
 
 def main():
-    # Covariance matrix of the normal distribution used to explore
-    exploration_size = None
 
+    # hyperparameters
+    exploration_size = None  # Covariance matrix of the normal distribution used to explore
     actor_step_size = 0.01
     critic_step_size = 0.01
+    discount_factor = 0.95
+    eligibility_trace_decay_factor = 0.7
 
 
 def run_simulation():

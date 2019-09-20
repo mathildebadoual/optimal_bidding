@@ -35,18 +35,18 @@ def main():
         battery.step(fcas_cleared_power, battery_bid_energy.power_signed())
 
         energy_price = data_utils.get_energy_price(timestamp)
-        low_price = data_utils.get_low_price(timestamp)
+        raise_demand = data_utils.get_raise_demand(timestamp)
         raise_price = data_utils.get_raise_price(timestamp)
 
         save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
                   fcas_clearing_price, soe, index, timestamp, energy_price,
-                  low_price, raise_price)
+                  raise_demand, raise_price)
         index += 1
 
 
 def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
               fcas_clearing_price, soe, index, timestamp, energy_price,
-              low_price, raise_price):
+              raise_demand, raise_price):
     d = {}
     d['battery_bid_fcas_power'] = battery_bid_fcas.power()
     d['battery_bid_fcas_price'] = battery_bid_fcas.price()
@@ -64,7 +64,7 @@ def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
 
     d['fcas_clearing_price'] = fcas_clearing_price
     d['energy_price'] = energy_price
-    d['low_price'] = low_price
+    d['raise_demand'] = raise_demand
     d['raise_price'] = raise_price
     d['soe'] = soe
     d['timestamp'] = timestamp
