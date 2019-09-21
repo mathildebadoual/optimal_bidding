@@ -60,6 +60,41 @@ def reward_function(battery, bid_fcas, bid_energy, energy_cleared_price, fcas_cl
     return reward
 
 
+def create_actor_critic(n_input, n_hidden, n_output):
+    ## initialize tensor for inputs, and outputs
+    x = torch.randn((1, n_input))
+    y = torch.randn((1, n_output))
+
+    ## initialize tensor variables for weights
+    w1 = torch.randn(n_input, n_hidden)
+    w2 = torch.randn(n_hidden, n_output)
+
+    ## initialize tensor variables for bias terms
+    b1 = torch.randn((1, n_hidden))
+    b2 = torch.randn((1, n_output))
+
+    ## sigmoid activation function using pytorch
+    def sigmoid_activation(z):
+        return 1 / (1 + torch.exp(-z))
+
+    ## activation of hidden layer
+    z1 = torch.mm(x, w1) + b1
+    a1 = sigmoid_activation(z1)
+
+    ## activation (output) of final layer
+    z2 = torch.mm(a1, w2) + b2
+    model = sigmoid_activation(z2)
+
+    return model
+
+
+def get_gradient(model, input_values):
+    output = model(input_values)
+    output.backward()
+    x.grad
+
+
+
 def run_simulation():
     """The learning is online so only one function is running
     the all simulation + learning.
