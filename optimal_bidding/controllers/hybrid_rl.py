@@ -2,6 +2,7 @@ import sys
 import os
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 sys.path.append(
     os.path.dirname(
@@ -10,6 +11,7 @@ from optimal_bidding.environments.energy_market import FCASMarket
 from optimal_bidding.environments.agents import Battery, Bid
 from optimal_bidding.utils.nets import ActorNet, CriticNet
 import optimal_bidding.utils.data_postprocess as data_utils
+import torch
 
 
 class ActorCritic():
@@ -53,15 +55,15 @@ class ActorCritic():
             prev_fcas_clearing_price = fcas_clearing_price
             raise_demand = data_utils.get_raise_demand(timestamp)
             # TODO finish state definition
-            state = np.array([step_of_day,
-                              soe,
-                              prev_energy_cleared_price,
-                              energy_cleared_price,
-                              prev_fcas_clearing_price,
-                              raise_demand])
+            state = torch.tensor(np.array([step_of_day,
+                                          soe,
+                                          prev_energy_cleared_price,
+                                          energy_cleared_price,
+                                          prev_fcas_clearing_price,
+                                          raise_demand]))
 
             # compute the action = [p_raise, c_raise, p_energy]
-            action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(state, k, timestamp)
+            action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(state, timestamp, k)
             energy_cleared_price = data_utils.get_energy_price(timestamp)
 
             fcas_bid, energy_bid = self._transform_to_bid(
@@ -113,6 +115,7 @@ class ActorCritic():
 
 
     def _transform_to_bid(self, action, energy_cleared_price):
+        action = action[0]
         bid_fcas = Bid(action[0], action[1], bid_type='gen')
         if action[2] >= 0:
             bid_energy = Bid(action[2], energy_cleared_price, bid_type='load')
@@ -122,13 +125,14 @@ class ActorCritic():
 
 
     def _compute_action(self, state, timestamp, k):
+        # timestamp = datetime.fromtimestamp(timestamp)
         bid_fcas_mpc, bid_energy_mpc = self._battery.bid_mpc(timestamp)
-        action_supervisor = np.array([
+        action_supervisor = torch.tensor([
             bid_fcas_mpc.power_signed(),
             bid_fcas_mpc.price(),
             bid_energy_mpc.power_signed()
         ])
-        action_actor = self.self.actor_nn(state)
+        action_actor = self._actor_nn(state.float())
         action_exploration = torch.randn(1,3)
         return action_supervisor, action_actor, action_exploration, k * action_supervisor + (1 - k) * (action_actor + action_exploration)
 
@@ -178,7 +182,7 @@ class ActorCritic():
         return reward
 
     def _get_step_of_day(self, timestamp, timestep_min=30):
-        return timestamp[i].hour * 60/timestep_min + timestamp[i].minute / timestep_min
+        return timestamp.hour * 60/timestep_min + timestamp.minute / timestep_min
 
 def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
               fcas_clearing_price, soe, index, timestamp, energy_price,
