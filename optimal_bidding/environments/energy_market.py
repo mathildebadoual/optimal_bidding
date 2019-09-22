@@ -52,17 +52,16 @@ class FCASMarket():
     def step(self, battery_bid):
         """Collects everyone bids and compute the dispatch
         """
-        power_cleared, clearing_price = self.compute_dispatch(battery_bid)
+        battery_bid_cleared, clearing_price = self.compute_dispatch(
+            battery_bid)
         self._timestamp += pd.Timedelta('30 min')
 
-        state = [power_cleared, clearing_price]
         if self._timestamp > self._end_timestamp:
             end = True
         else:
             end = False
-        state += [end]
 
-        return np.array(state)
+        return battery_bid_cleared, clearing_price, end
 
     def compute_dispatch(self, battery_bid):
         """Here is the optimization problem solving the
@@ -136,7 +135,6 @@ class FCASMarket():
 
         # print('clearing_price: %s' % clearing_price)
 
-        if battery_bid.type() == 'gen':
-            power_cleared = - power_cleared
+        battery_bid_cleared = Bid(power_cleared, battery_bid.price(), bid_type=battery_bid.type())
 
-        return power_cleared, clearing_price
+        return battery_bid_cleared, clearing_price

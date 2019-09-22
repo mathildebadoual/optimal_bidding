@@ -118,7 +118,7 @@ class Battery(Agent):
         for t in range(self._horizon - 1):
             constraints += [
                 soe[t + 1] == soe[t] + self._efficiency *
-                (-p_gen[t] - self._ratio_fcast * s_raise[t] + p_load[t])
+                (- p_gen[t] - self._ratio_fcast * s_raise[t] + p_load[t])
             ]
 
         constraints += [
