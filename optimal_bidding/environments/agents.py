@@ -68,7 +68,7 @@ class Battery(Agent):
                                                      horizon=self._horizon)
         raise_demand = data.get_raise_demand_day_ahead(timestamp,
                                                      horizon=self._horizon)
-
+        #print(energy_price, low_price, raise_price, raise_demand)
         n, m, p_gen, p_load, s_raise, s_low = self._solve_optimal_bidding_mpc(
             energy_price,
             low_price,

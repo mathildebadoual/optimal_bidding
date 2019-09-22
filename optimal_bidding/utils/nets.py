@@ -18,7 +18,7 @@ class ActorNet(nn.Module):
     def __init__(self):
         super(ActorNet, self).__init__()
 
-        self.fc1 = nn.Linear(5, 5)
+        self.fc1 = nn.Linear(6, 5)
         self.fc2 = nn.Linear(5, 8)
         self.fc3 = nn.Linear(8, 3)
 
@@ -43,7 +43,7 @@ class CriticNet(nn.Module):
     # 2 artificial time-dependent features.
 
     def __init__(self):
-        super(ActorNet, self).__init__()
+        super(CriticNet, self).__init__()
 
         self.fc1 = nn.Linear(5, 5)
         self.fc2 = nn.Linear(5, 8)
