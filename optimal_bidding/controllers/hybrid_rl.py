@@ -27,7 +27,7 @@ class ActorCritic():
         self._actor_nn = ActorNet()
         self._critic_nn = CriticNet()
 
-        self._eligibility = 0
+        self._eligibility = [0] * len(list(self._critic_nn.parameters()))
         self._delta = None
 
     def run_simulation(self):
@@ -44,10 +44,10 @@ class ActorCritic():
             state = np.array([step_of_day, soe, ...])
 
             # compute the action = [p_raise, c_raise, p_energy]
-            action = self._compute_action(state, k, timestamp)
+            action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(state, k, timestamp)
             energy_cleared_price = data_utils.get_energy_price(timestamp)
             fcas_bid, energy_bid = self._transform_to_bid(
-                action, energy_cleared_price)
+                action_composite, energy_cleared_price)
 
             # run the market dispatch
             fcas_bid_cleared, fcas_clearing_price, end = self._fcas_market.step(
@@ -61,16 +61,14 @@ class ActorCritic():
                                           energy_cleared_price,
                                           fcas_bid_cleared)
 
-            # run backpropagation
-            self._critic_nn(state).backward()
-            action.backward()
+            # update eligibility and delta
 
             self._delta = r + self._discount_factor * self._critic_nn(
                 next_state) - self._critic_nn(state)
 
             # update neural nets
             self._update_critic()
-            self._update_actor()
+            self._update_actor(action_supervisor, action_actor, action_exploration, k)
 
             index += 1
 
@@ -80,13 +78,25 @@ class ActorCritic():
         # self._critic_nn.fc3.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc3.grad.data
         #
         # self._critic_nn.data.zero_()
+
         self._critic_nn.zero_grad()
         self._critic_nn.backward()
+        i = 0
+        for f in self._critic_nn.parameters():
+            # update eligibilities
+            self._eligibility[i] = self._discount_factor * self._eligibility_trace_decay_factor * self._eligibility[i] + f.grad.data
+            # update weights. not sure whether the minus sign should be there.
+            f.data.sub_(- self._critic_step_size * self._delta * self._eligibility[i])
+            i += 1
 
-    def _update_actor(self):
+
+    def _update_actor(self, action_supervisor, action_actor, action_exploration, k):
 
         self._actor_nn.zero_grad()
         self._actor_nn.backward(torch.ones(1,3))
+        for f in self._actor_nn.parameters():
+            # update weights. not sure whether the minus sign should be there.
+            f.data.sub_(- self._actor_step_size * ((1-k) * self._delta * action_exploration + k * (action_supervisor - action_actor)) * f.grad.data)
 
 
 
@@ -98,9 +108,6 @@ class ActorCritic():
             bid_energy = Bid(action[2], energy_cleared_price, bid_type='gen')
         return bid_fcas, bid_energy
 
-    def _get_action_actor(self, state):
-        action = self._actor_nn(state)
-        return action
 
     def _compute_action(self, state, timestamp, k):
         bid_fcas_mpc, bid_energy_mpc = self._battery.bid_mpc(timestamp)
@@ -109,8 +116,9 @@ class ActorCritic():
             bid_fcas_mpc.price(),
             bid_energy_mpc.power_signed()
         ])
-        action_actor = self._get_action_actor(state)
-        return k * action_supervisor + (1 - k) * action_actor
+        action_actor = self.self.actor_nn(state)
+        action_exploration = torch.randn(1,3)
+        return action_supervisor, action_actor, action_exploration, k * action_supervisor + (1 - k) * (action_actor + action_exploration)
 
     def _compute_reward(self, bid_fcas, bid_energy, energy_cleared_price,
                         fcas_bid_cleared):
