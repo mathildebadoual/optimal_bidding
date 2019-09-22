@@ -34,6 +34,9 @@ class ActorCritic():
         end = False
         index = 0
         k = 1
+        # Initialize to 0 (only affects first state)
+        energy_cleared_price = None
+        fcas_clearing_price = 0
         while not end:
             timestamp = self._fcas_market.get_timestamp()
             print('timestamp: %s' % timestamp)
@@ -41,11 +44,26 @@ class ActorCritic():
             # create the state:
             soe = self._battery.get_soe()
             step_of_day = self._get_step_of_day(timestamp)
-            state = np.array([step_of_day, soe, ...])
+
+            # energy_cleared_price will hold previous clearing price unless it is the first timestamp
+            if energy_cleared_price is None:
+                energy_cleared_price = data_utils.get_energy_price(timestamp)
+            prev_energy_cleared_price = energy_cleared_price
+            energy_cleared_price = data_utils.get_energy_price(timestamp)
+            prev_fcas_clearing_price = fcas_clearing_price
+            raise_demand = data_utils.get_raise_demand(timestamp)
+            # TODO finish state definition
+            state = np.array([step_of_day,
+                              soe,
+                              prev_energy_cleared_price,
+                              energy_cleared_price,
+                              prev_fcas_clearing_price,
+                              raise_demand])
 
             # compute the action = [p_raise, c_raise, p_energy]
             action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(state, k, timestamp)
             energy_cleared_price = data_utils.get_energy_price(timestamp)
+
             fcas_bid, energy_bid = self._transform_to_bid(
                 action_composite, energy_cleared_price)
 
@@ -62,25 +80,20 @@ class ActorCritic():
                                           fcas_bid_cleared)
 
             # update eligibility and delta
-
-            self._delta = r + self._discount_factor * self._critic_nn(
-                next_state) - self._critic_nn(state)
+            current_state_value = self._critic_nn(state)
+            next_state_value = self._critic_nn(next_state)
+            self._delta = r + self._discount_factor * next_state_value - current_state_value
 
             # update neural nets
-            self._update_critic()
+            self._update_critic(current_state_value)
             self._update_actor(action_supervisor, action_actor, action_exploration, k)
 
             index += 1
 
-    def _update_critic(self):
-        # self._critic_nn.fc1.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc1.grad.data
-        # self._critic_nn.fc2.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc2.grad.data
-        # self._critic_nn.fc3.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc3.grad.data
-        #
-        # self._critic_nn.data.zero_()
+    def _update_critic(self, current_state_value):
 
         self._critic_nn.zero_grad()
-        self._critic_nn.backward()
+        current_state_value.backward()
         i = 0
         for f in self._critic_nn.parameters():
             # update eligibilities
@@ -91,9 +104,8 @@ class ActorCritic():
 
 
     def _update_actor(self, action_supervisor, action_actor, action_exploration, k):
-
         self._actor_nn.zero_grad()
-        self._actor_nn.backward(torch.ones(1,3))
+        action_actor.backward(torch.ones(1,3))
         for f in self._actor_nn.parameters():
             # update weights. not sure whether the minus sign should be there.
             f.data.sub_(- self._actor_step_size * ((1-k) * self._delta * action_exploration + k * (action_supervisor - action_actor)) * f.grad.data)
@@ -165,6 +177,8 @@ class ActorCritic():
 
         return reward
 
+    def _get_step_of_day(self, timestamp, timestep_min=30):
+        return timestamp[i].hour * 60/timestep_min + timestamp[i].minute / timestep_min
 
 def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
               fcas_clearing_price, soe, index, timestamp, energy_price,
