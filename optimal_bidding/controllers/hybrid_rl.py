@@ -21,6 +21,7 @@ class ActorCritic():
         self._discount_factor = 0.95
         self._eligibility_trace_decay_factor = 0.7
 
+
         self._fcas_market = FCASMarket()
         self._battery = Battery()
         self._actor_nn = ActorNet()
@@ -74,11 +75,20 @@ class ActorCritic():
             index += 1
 
     def _update_critic(self):
-        self._critic_nn.fc1.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc1.grad.data
-        self._critic_nn.fc2.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc2.grad.data
-        self._critic_nn.fc3.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc3.grad.data
+        # self._critic_nn.fc1.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc1.grad.data
+        # self._critic_nn.fc2.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc2.grad.data
+        # self._critic_nn.fc3.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc3.grad.data
+        #
+        # self._critic_nn.data.zero_()
+        self._critic_nn.zero_grad()
+        self._critic_nn.backward()
 
-        self._critic_nn.data.zero_()
+    def _update_actor(self):
+
+        self._actor_nn.zero_grad()
+        self._actor_nn.backward(torch.ones(1,3))
+
+
 
     def _transform_to_bid(self, action, energy_cleared_price):
         bid_fcas = Bid(action[0], action[1], bid_type='gen')
