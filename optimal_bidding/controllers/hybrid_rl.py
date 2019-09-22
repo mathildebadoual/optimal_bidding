@@ -61,7 +61,8 @@ class ActorCritic():
                                           fcas_bid_cleared)
 
             # run backpropagation
-            self._critic_nn(state).backward()
+            value_function = self._critic_nn(state)
+            value_function.backward()
             action.backward()
 
             self._delta = r + self._discount_factor * self._critic_nn(
@@ -74,9 +75,19 @@ class ActorCritic():
             index += 1
 
     def _update_critic(self):
-        self._critic_nn.fc1.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc1.grad.data
-        self._critic_nn.fc2.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc2.grad.data
-        self._critic_nn.fc3.data += - self._delta * self._critic_step_size * elf._discount_factor * self._eligibility * self._eligibility_trace_decay_factor + self._critic_nn.fc3.grad.data
+        grad_critic = np.array([
+            self._critic_nn.fc1.grad.data, self._critic_nn.fc2.grad.data,
+            self._critic_nn.fc3.grad.data
+        ])
+        self._eligibility = self._discount_factor * self._eligibility * \
+                self._eligibility_trace_decay_factor + grad_critic
+
+        self._critic_nn.fc1.data += self._delta * self._critic_step_size * \
+                self._eligibility[0]
+        self._critic_nn.fc2.data += self._delta * self._critic_step_size * \
+                self._eligibility[1]
+        self._critic_nn.fc3.data += self._delta * self._critic_step_size * \
+                self._eligibility[2]
 
         self._critic_nn.data.zero_()
 
@@ -88,10 +99,6 @@ class ActorCritic():
             bid_energy = Bid(action[2], energy_cleared_price, bid_type='gen')
         return bid_fcas, bid_energy
 
-    def _get_action_actor(self, state):
-        action = self._actor_nn(state)
-        return action
-
     def _compute_action(self, state, timestamp, k):
         bid_fcas_mpc, bid_energy_mpc = self._battery.bid_mpc(timestamp)
         action_supervisor = np.array([
@@ -99,7 +106,7 @@ class ActorCritic():
             bid_fcas_mpc.price(),
             bid_energy_mpc.power_signed()
         ])
-        action_actor = self._get_action_actor(state)
+        action_actor = self._actor_nn(state)
         return k * action_supervisor + (1 - k) * action_actor
 
     def _compute_reward(self, bid_fcas, bid_energy, energy_cleared_price,
