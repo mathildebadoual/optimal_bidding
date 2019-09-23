@@ -66,24 +66,31 @@ class ActorCritic():
             action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(state, timestamp, k)
             energy_cleared_price = data_utils.get_energy_price(timestamp)
 
-            fcas_bid, energy_bid = self._transform_to_bid(
+            bid_fcas, bid_energy = self._transform_to_bid(
                 action_composite, energy_cleared_price)
 
             # run the market dispatch
             fcas_bid_cleared, fcas_clearing_price, end = self._fcas_market.step(
-                fcas_bid)
+                bid_fcas)
 
             # update soe of the battery with the cleared power
             self._battery.step(fcas_bid_cleared.power_signed(),
-                               energy_bid.power_signed())
+                               bid_energy.power_signed())
 
             reward = self._compute_reward(bid_fcas, bid_energy,
                                           energy_cleared_price,
                                           fcas_bid_cleared)
 
+            next_soe = self._battery.get_soe()
+            next_state = torch.tensor(([(step_of_day + 1) % 48,
+                                        next_soe,
+                                        energy_cleared_price,
+                                        energy_cleared_price,
+                                        prev_fcas_clearing_price,
+                                        raise_demand]))
             # update eligibility and delta
-            current_state_value = self._critic_nn(state)
-            next_state_value = self._critic_nn(next_state)
+            current_state_value = self._critic_nn(state.float())
+            next_state_value = self._critic_nn(next_state.float())
             self._delta = r + self._discount_factor * next_state_value - current_state_value
 
             # update neural nets
@@ -115,7 +122,11 @@ class ActorCritic():
 
 
     def _transform_to_bid(self, action, energy_cleared_price):
-        action = action[0]
+        action = action[0].data.numpy()
+        if action[1] < 0:
+            action[1] = 0
+        if action[0] < 0:
+            action[0] = 0
         bid_fcas = Bid(action[0], action[1], bid_type='gen')
         if action[2] >= 0:
             bid_energy = Bid(action[2], energy_cleared_price, bid_type='load')
