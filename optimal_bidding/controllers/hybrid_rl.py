@@ -66,11 +66,15 @@ class ActorCritic():
                                           raise_demand]))
 
             # compute the action = [p_raise, c_raise, p_energy]
-            action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(state, timestamp, k)
+            action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(
+                state, timestamp, k)
             energy_cleared_price = data_utils.get_energy_price(timestamp)
 
             bid_fcas, bid_energy = self._transform_to_bid(
                 action_composite, energy_cleared_price)
+
+            print('bid fcas power: %s' % bid_fcas.power())
+            print('bid fcas price: %s' % bid_fcas.price())
 
             # run the market dispatch
             fcas_bid_cleared, fcas_clearing_price, end = self._fcas_market.step(
@@ -134,15 +138,15 @@ class ActorCritic():
 
     def _transform_to_bid(self, action, energy_cleared_price):
         action = action[0].data.numpy()
-        if action[1] < 0:
-            action[1] = 0
-        if action[0] < 0:
-            action[0] = 0
-        bid_fcas = Bid(action[0], action[1], bid_type='gen')
+        # if action[1] < 0:
+        #     action[1] = 0
+        # if action[0] < 0:
+        #     action[0] = 0
+        bid_fcas = Bid(-action[0], action[1], bid_type='gen')
         if action[2] >= 0:
             bid_energy = Bid(action[2], energy_cleared_price, bid_type='load')
         else:
-            bid_energy = Bid(action[2], energy_cleared_price, bid_type='gen')
+            bid_energy = Bid(-action[2], energy_cleared_price, bid_type='gen')
         return bid_fcas, bid_energy
 
     def _compute_action(self, state, timestamp, k):
@@ -154,7 +158,7 @@ class ActorCritic():
             bid_energy_mpc.power_signed()
         ])
         action_actor = self._actor_nn(state.float())
-        action_exploration = torch.randn(1,3)
+        action_exploration = torch.randn(1, 3)
         return action_supervisor, action_actor, action_exploration, k * action_supervisor + (1 - k) * (action_actor + action_exploration)
 
     def _compute_reward(self, bid_fcas, bid_energy, energy_cleared_price,
