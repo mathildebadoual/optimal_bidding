@@ -82,16 +82,22 @@ class ActorCritic():
                                           fcas_bid_cleared)
 
             next_soe = self._battery.get_soe()
-            next_state = torch.tensor(([(step_of_day + 1) % 48,
-                                        next_soe,
-                                        energy_cleared_price,
-                                        energy_cleared_price,
-                                        prev_fcas_clearing_price,
-                                        raise_demand]))
+
+            next_timestamp = timestamp + pd.Timedelta('30 min')
+            next_step_of_day = self._get_step_of_day(next_timestamp)
+            next_energy_cleared_price = data_utils.get_energy_price(next_timestamp)
+            next_raise_demand = data_utils.get_raise_demand(next_timestamp)
+            next_state = torch.tensor([next_step_of_day,
+                                       next_soe,
+                                       energy_cleared_price,
+                                       next_energy_cleared_price,
+                                       fcas_clearing_price,
+                                       next_raise_demand])
+
             # update eligibility and delta
             current_state_value = self._critic_nn(state.float())
             next_state_value = self._critic_nn(next_state.float())
-            self._delta = r + self._discount_factor * next_state_value - current_state_value
+            self._delta = reward + self._discount_factor * next_state_value - current_state_value
 
             # update neural nets
             self._update_critic(current_state_value)
@@ -115,6 +121,9 @@ class ActorCritic():
     def _update_actor(self, action_supervisor, action_actor, action_exploration, k):
         self._actor_nn.zero_grad()
         action_actor.backward(torch.ones(1,3))
+        print(action_actor)
+        print(action_supervisor)
+        print(action_exploration)
         for f in self._actor_nn.parameters():
             # update weights. not sure whether the minus sign should be there.
             f.data.sub_(- self._actor_step_size * ((1-k) * self._delta * action_exploration + k * (action_supervisor - action_actor)) * f.grad.data)
