@@ -4,7 +4,7 @@ import numpy as np
 import cvxpy as cvx
 import pandas as pd
 
-from optimal_bidding.environments.agents import AgentDeterministic
+from optimal_bidding.environments.agents import AgentDeterministic, Bid
 import optimal_bidding.utils.data_postprocess as data_utils
 
 
@@ -75,7 +75,7 @@ class FCASMarket():
           clearing_price = float
         """
         power_dispatched = cvx.Variable(self._num_agents)
-
+        print(power_dispatched)
         power_max = cvx.Parameter(self._num_agents)
         power_min = cvx.Parameter(self._num_agents)
         cost = cvx.Parameter(self._num_agents)
@@ -111,13 +111,16 @@ class FCASMarket():
 
         # build the objective
         objective = cvx.Minimize(power_dispatched.T * cost)
-
+        print(constraint)
         # build objective
         problem = cvx.Problem(objective, constraint)
 
         # solve problem
-        problem.solve(verbose=False)
+        problem.solve(verbose=True)
+        print(battery_bid.price())
+        print(battery_bid.power_signed())
 
+        print(power_dispatched.value)
         # get the power cleared for the battery
         power_cleared = power_dispatched.value[-1]
 
