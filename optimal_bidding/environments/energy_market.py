@@ -79,6 +79,7 @@ class FCASMarket():
         power_min = cvx.Parameter(self._num_agents)
         cost = cvx.Parameter(self._num_agents)
         demand = cvx.Parameter()
+        #print(battery_bid)
 
         # get data from AEMO file
         if battery_bid.type() == 'load':

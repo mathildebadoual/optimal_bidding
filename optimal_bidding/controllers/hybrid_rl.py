@@ -22,11 +22,13 @@ class ActorCritic():
         self._exploration_size = None
 
         self._actor_step_size = 0.01
+        # .001
         self._critic_step_size = 0.01
+        # .001
         self._discount_factor = 0.95
         self._e_tdf = 0.7
 
-
+        torch.manual_seed(0)
         self._fcas_market = FCASMarket()
         self._battery = Battery()
         self._actor_nn = ActorNet()
@@ -34,6 +36,8 @@ class ActorCritic():
 
         self._e = [0] * len(list(self._critic_nn.parameters()))
         self._delta = None
+
+
 
     def run_simulation(self):
         end = False
@@ -102,14 +106,20 @@ class ActorCritic():
                                        next_raise_demand])
 
             # update eligibility and delta
+            print(state.float())
             current_state_value = self._critic_nn(state.float())
             next_state_value = self._critic_nn(next_state.float())
+            print(current_state_value)
+            print(next_state_value)
             self._delta = reward + self._discount_factor * next_state_value - current_state_value
 
             # update neural nets
             self._update_critic(current_state_value)
             self._update_actor(action_supervisor, action_actor, action_exploration, k)
 
+            save_data(bid_fcas, bid_energy, fcas_bid_cleared, fcas_clearing_price, soe, index,
+                      timestamp, energy_cleared_price, reward, current_state_value,
+                      next_state_value, raise_demand)
             index += 1
 
     def _update_critic(self, current_state_value):
@@ -138,15 +148,17 @@ class ActorCritic():
             else:
                 action_actor.backward(v, retain_graph=False)
             for f in self._actor_nn.parameters():
-                temp.append(f.grad.data)
+                temp.append(f.grad.data.clone())
             grads.append(temp)
             self._actor_nn.zero_grad()
 
         action_vector =  ((1-k) * self._delta * action_exploration + k * (action_supervisor - action_actor))[0]
+
         for i, f in enumerate(self._actor_nn.parameters()):
             for j in range(3):
                 # update weights. not sure whether the minus sign should be there.
                 f.data.sub_(- self._actor_step_size * action_vector[j] * grads[j][i])
+
 
 
     def _transform_to_bid(self, action, energy_cleared_price):
@@ -223,8 +235,8 @@ class ActorCritic():
         return timestamp.hour * 60/timestep_min + timestamp.minute / timestep_min
 
 def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
-              fcas_clearing_price, soe, index, timestamp, energy_price,
-              low_price, raise_price):
+              fcas_clearing_price, soe, index, timestamp, energy_price, reward,
+              current_state_value, next_state_value, raise_demand):
     """This function is just to save the data in a csv. To be changed as needed!
     """
     d = {}
@@ -241,16 +253,18 @@ def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
 
     d['battery_bid_energy_price'] = battery_bid_energy.price()
     d['battery_bid_energy_type'] = battery_bid_energy.type()
-
+    d['fcas_cleared_power'] = fcas_cleared_power
     d['fcas_clearing_price'] = fcas_clearing_price
     d['energy_price'] = energy_price
-    d['low_price'] = low_price
-    d['raise_price'] = raise_price
+    d['reward'] = reward
+    d['current_state_value'] = current_state_value.item()
+    d['next_state_value'] = next_state_value.item()
+    d['raise_demand'] = raise_demand
     d['soe'] = soe
     d['timestamp'] = timestamp
 
     df = pd.DataFrame(data=d, index=[index])
-    with open('mpc_results.csv', 'a') as f:
+    with open('hybrid_rl_results.csv', 'a') as f:
         if index == 0:
             df.to_csv(f, header=True)
         else:
