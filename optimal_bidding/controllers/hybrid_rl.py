@@ -21,12 +21,12 @@ class ActorCritic():
         # TODO: Find this -> variance of exploration
         self._exploration_size = None
 
-        self._actor_step_size = 0.01
+        self._actor_step_size = 0.001
         # .001
-        self._critic_step_size = 0.01
+        self._critic_step_size = 0.001
         # .001
-        self._discount_factor = 0.95
-        self._e_tdf = 0.7
+        self._discount_factor = 0.9
+        self._e_tdf = 0.01
 
         torch.manual_seed(0)
         self._fcas_market = FCASMarket()
@@ -36,8 +36,6 @@ class ActorCritic():
 
         self._e = [0] * len(list(self._critic_nn.parameters()))
         self._delta = None
-
-
 
     def run_simulation(self):
         end = False
@@ -106,11 +104,8 @@ class ActorCritic():
                                        next_raise_demand])
 
             # update eligibility and delta
-            print(state.float())
             current_state_value = self._critic_nn(state.float())
             next_state_value = self._critic_nn(next_state.float())
-            print(current_state_value)
-            print(next_state_value)
             self._delta = reward + self._discount_factor * next_state_value - current_state_value
 
             # update neural nets
@@ -123,7 +118,6 @@ class ActorCritic():
             index += 1
 
     def _update_critic(self, current_state_value):
-        self._critic_nn.zero_grad()
         current_state_value.backward()
         i = 0
         for f in self._critic_nn.parameters():
@@ -133,10 +127,9 @@ class ActorCritic():
             # update weights. not sure whether the minus sign should be there.
             f.data.sub_(-self._critic_step_size * self._delta * self._e[i])
             i += 1
+        self._critic_nn.zero_grad()
 
     def _update_actor(self, action_supervisor, action_actor, action_exploration, k):
-        self._actor_nn.zero_grad()
-
         grad_input_vectors = [torch.tensor([1., 0, 0]), torch.tensor([0, 1., 0]), torch.tensor([0, 0, 1.])]
         # grads[i][j] is the gradient of the ith element of the output with
         grads = []
@@ -152,14 +145,15 @@ class ActorCritic():
             grads.append(temp)
             self._actor_nn.zero_grad()
 
-        action_vector =  ((1-k) * self._delta * action_exploration + k * (action_supervisor - action_actor))[0]
+        action_vector = ((1 - k) * self._delta * action_exploration + k *
+                         (action_supervisor - action_actor))[0]
 
         for i, f in enumerate(self._actor_nn.parameters()):
             for j in range(3):
                 # update weights. not sure whether the minus sign should be there.
-                f.data.sub_(- self._actor_step_size * action_vector[j] * grads[j][i])
-
-
+                f.data.sub_(-self._actor_step_size * action_vector[j] *
+                            grads[j][i])
+        self._actor_nn.zero_grad()
 
     def _transform_to_bid(self, action, energy_cleared_price):
         action = action[0].data.numpy()
@@ -184,7 +178,8 @@ class ActorCritic():
         ])
         action_actor = self._actor_nn(state.float())
         action_exploration = torch.randn(1, 3)
-        return action_supervisor, action_actor, action_exploration, k * action_supervisor + (1 - k) * (action_actor + action_exploration)
+        return action_supervisor, action_actor, action_exploration, k * action_supervisor + (
+            1 - k) * (action_actor + action_exploration)
 
     def _compute_reward(self, bid_fcas, bid_energy, energy_cleared_price,
                         fcas_bid_cleared):
@@ -233,6 +228,7 @@ class ActorCritic():
 
     def _get_step_of_day(self, timestamp, timestep_min=30):
         return timestamp.hour * 60/timestep_min + timestamp.minute / timestep_min
+
 
 def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
               fcas_clearing_price, soe, index, timestamp, energy_price, reward,
