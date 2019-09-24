@@ -17,11 +17,14 @@ import torch
 class ActorCritic():
     def __init__(self):
         # hyperparameters
+
+        # TODO: Find this -> variance of exploration
         self._exploration_size = None
+
         self._actor_step_size = 0.01
         self._critic_step_size = 0.01
         self._discount_factor = 0.95
-        self._eligibility_trace_decay_factor = 0.7
+        self._e_tdf = 0.7
 
 
         self._fcas_market = FCASMarket()
@@ -29,7 +32,7 @@ class ActorCritic():
         self._actor_nn = ActorNet()
         self._critic_nn = CriticNet()
 
-        self._eligibility = [0] * len(list(self._critic_nn.parameters()))
+        self._e = [0] * len(list(self._critic_nn.parameters()))
         self._delta = None
 
     def run_simulation(self):
@@ -63,11 +66,15 @@ class ActorCritic():
                                           raise_demand]))
 
             # compute the action = [p_raise, c_raise, p_energy]
-            action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(state, timestamp, k)
+            action_supervisor, action_actor, action_exploration, action_composite = self._compute_action(
+                state, timestamp, k)
             energy_cleared_price = data_utils.get_energy_price(timestamp)
 
             bid_fcas, bid_energy = self._transform_to_bid(
                 action_composite, energy_cleared_price)
+
+            print('bid fcas power: %s' % bid_fcas.power())
+            print('bid fcas price: %s' % bid_fcas.price())
 
             # run the market dispatch
             fcas_bid_cleared, fcas_clearing_price, end = self._fcas_market.step(
@@ -106,20 +113,20 @@ class ActorCritic():
             index += 1
 
     def _update_critic(self, current_state_value):
-
         self._critic_nn.zero_grad()
         current_state_value.backward()
         i = 0
         for f in self._critic_nn.parameters():
             # update eligibilities
-            self._eligibility[i] = self._discount_factor * self._eligibility_trace_decay_factor * self._eligibility[i] + f.grad.data
+            self._e[i] = self._discount_factor * self._e_tdf * self._e[
+                i] + f.grad.data
             # update weights. not sure whether the minus sign should be there.
-            f.data.sub_(- self._critic_step_size * self._delta * self._eligibility[i])
+            f.data.sub_(-self._critic_step_size * self._delta * self._e[i])
             i += 1
-
 
     def _update_actor(self, action_supervisor, action_actor, action_exploration, k):
         self._actor_nn.zero_grad()
+
         grad_input_vectors = [torch.tensor([1., 0, 0]), torch.tensor([0, 1., 0]), torch.tensor([0, 0, 1.])]
         # grads[i][j] is the gradient of the ith element of the output with
         grads = []
@@ -142,21 +149,18 @@ class ActorCritic():
                 f.data.sub_(- self._actor_step_size * action_vector[j] * grads[j][i])
 
 
-
-
     def _transform_to_bid(self, action, energy_cleared_price):
         action = action[0].data.numpy()
-        if action[1] < 0:
-            action[1] = 0
-        if action[0] < 0:
-            action[0] = 0
-        bid_fcas = Bid(action[0], action[1], bid_type='gen')
+        # if action[1] < 0:
+        #     action[1] = 0
+        # if action[0] < 0:
+        #     action[0] = 0
+        bid_fcas = Bid(-action[0], action[1], bid_type='gen')
         if action[2] >= 0:
             bid_energy = Bid(action[2], energy_cleared_price, bid_type='load')
         else:
-            bid_energy = Bid(action[2], energy_cleared_price, bid_type='gen')
+            bid_energy = Bid(-action[2], energy_cleared_price, bid_type='gen')
         return bid_fcas, bid_energy
-
 
     def _compute_action(self, state, timestamp, k):
         # timestamp = datetime.fromtimestamp(timestamp)
@@ -167,7 +171,7 @@ class ActorCritic():
             bid_energy_mpc.power_signed()
         ])
         action_actor = self._actor_nn(state.float())
-        action_exploration = torch.randn(1,3)
+        action_exploration = torch.randn(1, 3)
         return action_supervisor, action_actor, action_exploration, k * action_supervisor + (1 - k) * (action_actor + action_exploration)
 
     def _compute_reward(self, bid_fcas, bid_energy, energy_cleared_price,
