@@ -126,15 +126,28 @@ class ActorCritic():
 
     def _update_actor(self, action_supervisor, action_actor, action_exploration, k):
         self._actor_nn.zero_grad()
-        action_actor.backward(torch.ones(1,3))
-        print(action_actor)
-        print(action_supervisor)
-        print(action_exploration)
-        for f in self._actor_nn.parameters():
-            # update weights. not sure whether the minus sign should be there.
-            f.data.sub_(-self._actor_step_size *
-                        ((1 - k) * self._delta * action_exploration + k *
-                         (action_supervisor - action_actor)) * f.grad.data)
+
+        grad_input_vectors = [torch.tensor([1., 0, 0]), torch.tensor([0, 1., 0]), torch.tensor([0, 0, 1.])]
+        # grads[i][j] is the gradient of the ith element of the output with
+        grads = []
+
+        for i, v in enumerate(grad_input_vectors):
+            temp = []
+            if i != 2:
+                action_actor.backward(v, retain_graph=True)
+            else:
+                action_actor.backward(v, retain_graph=False)
+            for f in self._actor_nn.parameters():
+                temp.append(f.grad.data)
+            grads.append(temp)
+            self._actor_nn.zero_grad()
+
+        action_vector =  ((1-k) * self._delta * action_exploration + k * (action_supervisor - action_actor))[0]
+        for i, f in enumerate(self._actor_nn.parameters()):
+            for j in range(3):
+                # update weights. not sure whether the minus sign should be there.
+                f.data.sub_(- self._actor_step_size * action_vector[j] * grads[j][i])
+
 
     def _transform_to_bid(self, action, energy_cleared_price):
         action = action[0].data.numpy()
