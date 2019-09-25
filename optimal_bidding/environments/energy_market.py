@@ -43,9 +43,9 @@ class FCASMarket():
         agents_dict['agent_2'] = AgentDeterministic(11, 2)
         agents_dict['agent_3'] = AgentDeterministic(15, 7)
         agents_dict['agent_3'] = AgentDeterministic(19, 5)
-        agents_dict['agent_4'] = AgentDeterministic(20, 6)
-        agents_dict['agent_7'] = AgentDeterministic(83, 30)
-        agents_dict['agent_8'] = AgentDeterministic(100, 1000)
+        agents_dict['agent_4'] = AgentDeterministic(20, 12)
+        agents_dict['agent_7'] = AgentDeterministic(63, 30)
+        agents_dict['agent_8'] = AgentDeterministic(70, 1000)
 
         return agents_dict
 
@@ -120,11 +120,6 @@ class FCASMarket():
         # get the power cleared for the battery
         power_cleared = power_dispatched.value[-1]
 
-        # for i, name_agent in enumerate(self._agents_dict.keys()):
-        #     print('agent_name: %s' % name_agent)
-        #     print('power_dispatch: %s' % power_dispatched.value[i])
-        #     print('cost: %s' % cost_np[i])
-
         # compute clearing price
         possible_costs = []
         for i, power in enumerate(power_dispatched.value):
@@ -134,6 +129,8 @@ class FCASMarket():
 
         # print('clearing_price: %s' % clearing_price)
 
-        battery_bid_cleared = Bid(power_cleared, battery_bid.price(), bid_type=battery_bid.type())
+        battery_bid_cleared = Bid(power_cleared,
+                                  battery_bid.price(),
+                                  bid_type=battery_bid.type())
 
         return battery_bid_cleared, clearing_price
