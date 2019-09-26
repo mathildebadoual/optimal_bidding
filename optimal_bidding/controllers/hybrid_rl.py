@@ -19,26 +19,26 @@ class ActorCritic():
         # hyperparameters
         self._exploration_size = None
 
-        self._actor_step_size = 0.1
+        self._actor_step_size = 0.01
         self._critic_step_size = 0.01
-        self._discount_factor = 0.9
+        self._discount_factor = 0.95
 
-        torch.manual_seed(0)
+        torch.manual_seed(1)
         self._fcas_market = FCASMarket()
         self._battery = Battery()
         self._actor_nn = ActorNet()
         self._critic_nn = CriticNet()
         self._criterion = torch.nn.MSELoss()
 
-        self._optimizer_actor = optim.SGD(self._actor_nn.parameters(),
-                                          lr=0.0001)
+        self._optimizer_actor = optim.Adagrad(self._actor_nn.parameters(),
+                                              lr=0.01)
         self._optimizer_critic = optim.SGD(self._critic_nn.parameters(),
-                                           lr=0.001)
+                                           lr=0.1)
 
     def run_simulation(self):
         end = False
         index = 0
-        k = 1
+        k = 0
         # Initialize to 0 (only affects first state)
         en_cleared_price = 0
         fcas_clearing_price = 0
@@ -127,9 +127,10 @@ class ActorCritic():
                       b_en_actor_power, k, eligibility)
 
             index += 1
-            if index % 100 == 0 and k < 1:
-                k += 0.1
-                print(k)
+            if index > 1000:
+                if index % 10 == 0 and k < 1:
+                    k += 0.01
+                    print(k)
 
     def _update_critic(self, eligibility):
         loss = self._criterion(eligibility, torch.zeros(len(eligibility)))
@@ -147,7 +148,7 @@ class ActorCritic():
         loss = self._criterion(value, torch.zeros(len(value)))
         loss.backward()
         for f in self._actor_nn.parameters():
-            f.data.sub_(- f.grad.data * self._actor_step_size)
+            f.data.sub(- f.grad.data * self._actor_step_size)
         self._optimizer_actor.zero_grad()
 
     def _transform_to_bid(self, action, en_cleared_price):
