@@ -127,7 +127,7 @@ class ActorCritic():
                       b_en_actor_power, k, eligibility)
 
             index += 1
-            if index > 1000:
+            if index > 300:
                 if index % 10 == 0 and k < 1:
                     k += 0.01
                     print(k)
@@ -192,9 +192,7 @@ class ActorCritic():
         b_fcas_cleared_price = b_fcas_cleared.price()
 
         # bare bones r function
-        r = -(
-            b_en_cleared_power + abs(b_fcas_cleared_power)
-        ) * b_en_cleared_price + b_fcas_cleared_power * b_fcas_cleared_price
+        r = ( - b_en_cleared_power + abs(b_fcas_cleared_power)) * b_en_cleared_price + b_fcas_cleared_power * b_fcas_cleared_price
 
         soe = self._battery.get_soe()
         total_capacity = self._battery._total_capacity
