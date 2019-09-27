@@ -18,9 +18,9 @@ class FCASMarket():
                                              hour=4,
                                              minute=30)
         self._end_timestamp = pd.Timestamp(year=2018,
-                                           month=7,
+                                           month=11,
                                            day=1,
-                                           hour=4,
+                                           hour=0,
                                            minute=30)
         self._timestamp = self._start_timestamp
 
