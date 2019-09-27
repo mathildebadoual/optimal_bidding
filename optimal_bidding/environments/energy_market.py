@@ -5,7 +5,7 @@ import cvxpy as cvx
 import pandas as pd
 
 from optimal_bidding.environments.agents import AgentDeterministic, Bid
-import optimal_bidding.utils.data_postprocess as data_utils
+from optimal_bidding.utils.data_postprocess import DataProcessor
 
 
 class FCASMarket():
@@ -23,6 +23,10 @@ class FCASMarket():
                                            hour=0,
                                            minute=30)
         self._timestamp = self._start_timestamp
+
+
+        filename = 'FiveMonths2018_30min.csv'
+        self.data_utils = DataProcessor(self._end_timestamp, filename)
 
     def get_timestamp(self):
         return self._timestamp
@@ -83,9 +87,9 @@ class FCASMarket():
 
         # get data from AEMO file
         if battery_bid.type() == 'load':
-            demand = data_utils.get_low_demand(self._timestamp)
+            demand = self.data_utils.get_low_demand(self._timestamp)
         else:
-            demand = data_utils.get_raise_demand(self._timestamp)
+            demand = self.data_utils.get_raise_demand(self._timestamp)
 
         # call bids from agents
         power_max_np = np.zeros(self._num_agents)
