@@ -278,6 +278,8 @@ def save_data(b_fcas, b_en, b_fcas_cleared,
 
 
 def main():
+    f = open('hybrid_rl_results.csv', "w+")
+    f.close()
     actor_critic = ActorCritic()
     actor_critic.run_simulation()
 
