@@ -182,9 +182,9 @@ if __name__ == '__main__':
     dir_path = dirname(dirname(abspath(__file__)))
     static_path = join(dir_path, 'static')
     output_folder = join(static_path, 'consolidated_data')
-    energy_path = join(static_path, 'PUBLIC_PRICES_20180601')
+    energy_path = join(static_path, 'energy_csvs')
     fcas_path = join(static_path, "fcas_data")
-    output_prefix = 'June2018'
+    output_prefix = 'FiveMonths2018'
 
     consolidate_csvs(energy_path,
                      fcas_path,
