@@ -6,7 +6,7 @@ sys.path.append(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from optimal_bidding.environments.energy_market import FCASMarket
 from optimal_bidding.environments.agents import Battery
-import optimal_bidding.utils.data_postprocess as data_utils
+from optimal_bidding.utils.data_postprocess import DataProcessor
 
 
 def main():
@@ -14,6 +14,15 @@ def main():
     battery = Battery()
     end = False
     index = 0
+    last_day_of_data = pd.Timestamp(
+        year=2018,
+        month=10,
+        day=31,
+        hour=0,
+        minute=30,
+    )
+    filename = 'FiveMonths2018_30min.csv'
+    data_utils = DataProcessor(last_day_of_data, filename)
     while not end:
         timestamp = fcas_market.get_timestamp()
         print('timestamp: %s' % timestamp)
