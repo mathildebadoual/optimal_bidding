@@ -6,10 +6,10 @@ from optimal_bidding.utils.data_postprocess import DataProcessor
 
 last_day_of_data = pd.Timestamp(
     year=2018,
-    month=10,
-    day=31,
+    month=11,
+    day=1,
     hour=0,
-    minute=30,
+    minute=0,
 )
 filename = 'FiveMonths2018_30min.csv'
 data_utils = DataProcessor(last_day_of_data, filename)
@@ -79,7 +79,6 @@ class Battery(Agent):
                                                      horizon=self._horizon)
         raise_demand = data_utils.get_raise_demand_day_ahead(timestamp,
                                                      horizon=self._horizon)
-
         #print(energy_price, low_price, raise_price, raise_demand)
         n, m, p_gen, p_load, s_raise, s_low = self._solve_optimal_bidding_mpc(
             energy_price,
