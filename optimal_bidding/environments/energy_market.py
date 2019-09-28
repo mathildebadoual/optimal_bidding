@@ -13,8 +13,8 @@ class FCASMarket():
         self._num_agents = 10
         self._agents_dict = self._create_agents()
         self._start_timestamp = pd.Timestamp(year=2018,
-                                             month=10,
-                                             day=29,
+                                             month=6,
+                                             day=1,
                                              hour=4,
                                              minute=30)
         self._end_timestamp = pd.Timestamp(year=2018,
