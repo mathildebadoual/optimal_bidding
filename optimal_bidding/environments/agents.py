@@ -1,7 +1,18 @@
 import numpy as np
-import optimal_bidding.utils.data_postprocess as data
+import pandas as pd
 import cvxpy as cvx
+from optimal_bidding.utils.data_postprocess import DataProcessor
 
+
+last_day_of_data = pd.Timestamp(
+    year=2018,
+    month=11,
+    day=1,
+    hour=0,
+    minute=0,
+)
+filename = 'FiveMonths2018_30min.csv'
+data_utils = DataProcessor(last_day_of_data, filename)
 
 class Agent():
     """Agent parent class, all the other ch
@@ -60,13 +71,13 @@ class Battery(Agent):
         Return:
           bid: Bid object
         """
-        energy_price = data.get_energy_price_day_ahead(timestamp,
+        energy_price = data_utils.get_energy_price_day_ahead(timestamp,
                                                        horizon=self._horizon)
-        low_price = data.get_low_price_day_ahead(timestamp,
+        low_price = data_utils.get_low_price_day_ahead(timestamp,
                                                  horizon=self._horizon)
-        raise_price = data.get_raise_price_day_ahead(timestamp,
+        raise_price = data_utils.get_raise_price_day_ahead(timestamp,
                                                      horizon=self._horizon)
-        raise_demand = data.get_raise_demand_day_ahead(timestamp,
+        raise_demand = data_utils.get_raise_demand_day_ahead(timestamp,
                                                      horizon=self._horizon)
         #print(energy_price, low_price, raise_price, raise_demand)
         n, m, p_gen, p_load, s_raise, s_low = self._solve_optimal_bidding_mpc(
@@ -179,8 +190,8 @@ class AgentNaturalGas(AgentDeterministic):
         self._horizon = 48
 
     def bid(self, timestamp=0):
-        energy_price = data.get_energy_price(timestamp)
-        energy_prices = data.get_energy_price_day_ahead(timestamp,
+        energy_price = data_utils.get_energy_price(timestamp)
+        energy_prices = data_utils.get_energy_price_day_ahead(timestamp,
                                                         horizon=self._horizon)
         max_energy_price = max(energy_prices)
         inverted_multiplier = 1 - energy_price / max_energy_price
@@ -201,8 +212,8 @@ class AgentNaturalGas2(AgentDeterministic):
         self._horizon = 48
 
     def bid(self, timestamp=0):
-        energy_demand = data.get_energy_demand(timestamp)
-        energy_demands = data.get_energy_demand_day_ahead(
+        energy_demand = data_utils.get_energy_demand(timestamp)
+        energy_demands = data_utils.get_energy_demand_day_ahead(
             timestamp, horizon=self._horizon)
         max_energy_demand = max(energy_demands)
         inverted_multiplier = 1 - energy_demand / max_energy_demand

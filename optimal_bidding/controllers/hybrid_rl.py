@@ -11,17 +11,19 @@ sys.path.append(
 from optimal_bidding.environments.energy_market import FCASMarket
 from optimal_bidding.environments.agents import Battery, Bid
 from optimal_bidding.utils.nets import ActorNet, CriticNet
-import optimal_bidding.utils.data_postprocess as data_utils
+from optimal_bidding.utils.data_postprocess import DataProcessor
 
 
 class ActorCritic():
-    def __init__(self):
+    def __init__(self, data_utils):
         # hyperparameters
         self._exploration_size = None
 
         self._actor_step_size = 0.01
         self._critic_step_size = 0.01
         self._discount_factor = 0.95
+
+        self.data_utils = data_utils
 
         torch.manual_seed(1)
         self._fcas_market = FCASMarket()
@@ -53,11 +55,11 @@ class ActorCritic():
             # en_cleared_price will hold previous clearing price
             # unless it is the first timestamp
             if en_cleared_price is None:
-                en_cleared_price = data_utils.get_energy_price(timestamp)
+                en_cleared_price = self.data_utils.get_energy_price(timestamp)
             prev_en_cleared_price = en_cleared_price
-            en_cleared_price = data_utils.get_energy_price(timestamp)
+            en_cleared_price = self.data_utils.get_energy_price(timestamp)
             prev_fcas_clearing_price = fcas_clearing_price
-            raise_demand = data_utils.get_raise_demand(timestamp)
+            raise_demand = self.data_utils.get_raise_demand(timestamp)
             state = torch.tensor([
                     step_of_day, soe, prev_en_cleared_price,
                     en_cleared_price, prev_fcas_clearing_price,
@@ -71,7 +73,7 @@ class ActorCritic():
             # update the actor
             self._update_actor_supervised(a_s, a_a)
 
-            en_cleared_price = data_utils.get_energy_price(timestamp)
+            en_cleared_price = self.data_utils.get_energy_price(timestamp)
 
             b_fcas, b_en = self._transform_to_bid(
                 action_composite, en_cleared_price)
@@ -95,9 +97,9 @@ class ActorCritic():
 
             next_timestamp = timestamp + pd.Timedelta('30 min')
             next_step_of_day = self._get_step_of_day(next_timestamp)
-            next_en_cleared_price = data_utils.get_energy_price(
+            next_en_cleared_price = self.data_utils.get_energy_price(
                     next_timestamp)
-            next_raise_demand = data_utils.get_raise_demand(next_timestamp)
+            next_raise_demand = self.data_utils.get_raise_demand(next_timestamp)
             next_state = torch.tensor([
                 next_step_of_day, next_soe, en_cleared_price,
                 next_en_cleared_price, fcas_clearing_price,
@@ -276,9 +278,22 @@ def save_data(b_fcas, b_en, b_fcas_cleared,
 
 
 def main():
+
+    # erase output csv
     f = open('hybrid_rl_results.csv', "w+")
     f.close()
-    actor_critic = ActorCritic()
+
+    # initialize data processing
+    last_day_of_data = pd.Timestamp(
+        year=2018,
+        month=11,
+        day=1,
+        hour=0,
+        minute=0,
+    )
+
+    data_utils = DataProcessor(last_day_of_data, 'FiveMonths2018_30min.csv')
+    actor_critic = ActorCritic(data_utils)
     actor_critic.run_simulation()
 
 
