@@ -18,10 +18,10 @@ class FCASMarket():
                                              hour=4,
                                              minute=30)
         self._end_timestamp = pd.Timestamp(year=2018,
-                                           month=11,
-                                           day=1,
+                                           month=10,
+                                           day=31,
                                            hour=0,
-                                           minute=30)
+                                           minute=0)
         self._timestamp = self._start_timestamp
 
 
@@ -123,9 +123,8 @@ class FCASMarket():
 
         # get the power cleared for the battery
         power_cleared = power_dispatched.value[-1]
-
         # compute clearing price
-        possible_costs = []
+        possible_costs = [0]
         for i, power in enumerate(power_dispatched.value):
             if abs(power) > 1e-2:
                 possible_costs.append(cost.value[i])

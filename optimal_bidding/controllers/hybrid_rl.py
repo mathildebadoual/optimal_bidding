@@ -288,10 +288,10 @@ def main():
     # initialize data processing
     last_day_of_data = pd.Timestamp(
         year=2018,
-        month=10,
-        day=31,
+        month=11,
+        day=1,
         hour=0,
-        minute=30,
+        minute=0,
     )
 
     data_utils = DataProcessor(last_day_of_data, 'FiveMonths2018_30min.csv')
