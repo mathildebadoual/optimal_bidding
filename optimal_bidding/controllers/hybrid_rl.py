@@ -275,6 +275,7 @@ def save_data(b_fcas, b_en, b_fcas_cleared,
     d['fcas_demand'] = raise_demand
     d['soe'] = soe
     d['timestamp'] = timestamp
+    d['timestamp'] = pd.to_datetime(d['timestamp'])
     d['k'] = k
     d['delta'] = delta.data.numpy()
 

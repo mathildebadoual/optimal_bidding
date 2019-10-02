@@ -75,6 +75,7 @@ def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
     d['raise_price'] = raise_price
     d['soe'] = soe
     d['timestamp'] = timestamp
+    d['timestamp'] = pd.to_datetime(d['timestamp'])
 
     df = pd.DataFrame(data=d, index=[index])
     with open('mpc_results.csv', 'a') as f:
@@ -85,4 +86,8 @@ def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
 
 
 if __name__ == '__main__':
+    # erase output csv
+    f = open('mpc_results.csv', "w+")
+    f.close()
+
     main()
