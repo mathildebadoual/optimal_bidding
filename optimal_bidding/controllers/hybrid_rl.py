@@ -169,7 +169,6 @@ class ActorCritic():
     def _compute_action(self, state, timestamp, k):
         # timestamp = datetime.fromtimestamp(timestamp)
         b_fcas_mpc, b_en_mpc = self._battery.bid_mpc(timestamp)
-        print(b_fcas_mpc.power(), b_fcas_mpc.price())
         a_s = torch.tensor([
             b_fcas_mpc.power_signed(),
             b_fcas_mpc.price(),
@@ -238,7 +237,12 @@ def save_data(b_fcas, b_en, b_fcas_cleared,
               b_fcas_actor_power, b_fcas_actor_price,
               b_en_actor_power, k, delta):
     d = {}
-    d['b_fcas_power'] = b_fcas.power()
+
+    if type(b_fcas.power()) == torch.Tensor:
+        d['b_fcas_power'] = b_fcas.power().item()
+    else:
+        d['b_fcas_power'] = b_fcas.power()
+
     if type(b_fcas.price()) == torch.Tensor:
         d['b_fcas_price'] = b_fcas.price().item()
     else:
@@ -261,10 +265,11 @@ def save_data(b_fcas, b_en, b_fcas_cleared,
     d['b_fcas_cleared_power'] = b_fcas_cleared.power_signed()
     d['fcas_clearing_price'] = fcas_clearing_price
     d['en_price'] = en_price
-    if type(b_fcas.price()) == torch.Tensor:
+    if (type(b_fcas.price()) == torch.Tensor or type(b_fcas.power()) == torch.Tensor):
         d['r'] = r.item()
     else:
         d['r'] = r
+
     d['current_state_value'] = current_state_value.item()
     d['next_state_value'] = next_state_value.item()
     d['fcas_demand'] = raise_demand
