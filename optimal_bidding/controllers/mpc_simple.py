@@ -32,11 +32,13 @@ def main():
         # get the bids from the battery
         battery_bid_fcas, battery_bid_energy = battery.bid_mpc(timestamp)
 
+        print(battery_bid_fcas.power(), battery_bid_fcas.price())
+
         # run the market dispatch
         bid_fcas_cleared, fcas_clearing_price, end = fcas_market.step(battery_bid_fcas)
 
         # get state
-        fcas_cleared_power = bid_fcas_cleared.power()
+        fcas_cleared_power = bid_fcas_cleared.power_signed()
 
         # update soe of the battery with the cleared power
         battery.step(fcas_cleared_power, battery_bid_energy.power_signed())

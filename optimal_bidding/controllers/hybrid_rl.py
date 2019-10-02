@@ -71,8 +71,7 @@ class ActorCritic():
                 state, timestamp, k)
 
             # update the actor
-            if index < 1000:
-                self._update_actor_supervised(a_s, a_a)
+            self._update_actor_supervised(a_s, a_a)
 
             en_cleared_price = self.data_utils.get_energy_price(timestamp)
 
@@ -80,9 +79,6 @@ class ActorCritic():
                 action_composite, en_cleared_price)
 
             b_fcas, b_en, r_shield = self._shield(b_fcas, b_en, a_s)
-
-            print('action actor: %s' % a_a)
-            print('action supervisor: %s' % a_s)
 
             # run the market dispatch
             b_fcas_cleared, fcas_clearing_price, end = self._fcas_market.step(
@@ -173,6 +169,7 @@ class ActorCritic():
     def _compute_action(self, state, timestamp, k):
         # timestamp = datetime.fromtimestamp(timestamp)
         b_fcas_mpc, b_en_mpc = self._battery.bid_mpc(timestamp)
+        print(b_fcas_mpc.power(), b_fcas_mpc.price())
         a_s = torch.tensor([
             b_fcas_mpc.power_signed(),
             b_fcas_mpc.price(),
