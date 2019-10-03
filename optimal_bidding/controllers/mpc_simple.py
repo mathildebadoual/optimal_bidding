@@ -59,6 +59,8 @@ def save_data(battery_bid_fcas, battery_bid_energy, fcas_cleared_power,
     d['battery_bid_fcas_price'] = battery_bid_fcas.price()
     d['battery_bid_fcas_type'] = battery_bid_fcas.type()
 
+    d['fcas_cleared_power'] = fcas_cleared_power
+
     if battery_bid_energy.type() == 'gen':
         d['battery_bid_energy_power_gen'] = battery_bid_energy.power_signed()
         d['battery_bid_energy_power_load'] = 0

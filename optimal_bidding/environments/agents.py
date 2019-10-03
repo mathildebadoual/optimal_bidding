@@ -39,7 +39,7 @@ class Battery(Agent):
         self._max_ramp = 200
         self._efficiency = 1  # percent
         self._init_energy = 0
-        self._ratio_fcast = 0.5
+        self._ratio_fcast = 1
         self._max_ramp_power = 50  # MW
 
         # for optimization
@@ -52,8 +52,8 @@ class Battery(Agent):
 
     def step(self, fcast_cleared_power, energy_power_cleared):
         # add power used for the energy market
-        new_energy = self._soe + self._efficiency * energy_power_cleared + \
-                self._ratio_fcast * fcast_cleared_power
+        new_energy = self._soe + self._efficiency * (energy_power_cleared + \
+                self._ratio_fcast * fcast_cleared_power)
         if new_energy >= self._total_capacity:
             self._soe = self._total_capacity
         elif new_energy < 0:

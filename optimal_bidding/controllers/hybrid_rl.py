@@ -78,18 +78,29 @@ class ActorCritic():
             b_fcas, b_en = self._transform_to_bid(
                 action_composite, en_cleared_price)
 
+            #print(b_en.power())
+            #power_en_s = a_s[2].item()
+            #if power_en_s > 0:
+            #    b_en._type = 'load'
+            #else:
+            #    b_en._type = 'gen'
+            #b_en._power_bid = abs(a_s[2].item())
+            #print(b_en.power())
+
             b_fcas, b_en, r_shield = self._shield(b_fcas, b_en, a_s)
 
             # run the market dispatch
             b_fcas_cleared, fcas_clearing_price, end = self._fcas_market.step(
                 b_fcas)
 
+            r = self._compute_reward(b_fcas, b_en, en_cleared_price,
+                                     fcas_clearing_price, b_fcas_cleared, r_shield)
+
+
             # update soe of the battery with the cleared power
             self._battery.step(b_fcas_cleared.power_signed(),
                                b_en.power_signed())
 
-            r = self._compute_reward(b_fcas, b_en, en_cleared_price,
-                                     b_fcas_cleared, r_shield)
             next_soe = self._battery.get_soe()
 
             next_timestamp = timestamp + pd.Timedelta('30 min')
@@ -111,7 +122,7 @@ class ActorCritic():
             # update neural nets
             self._update_critic(eligibility)
             value = self._critic_nn(state.float())
-            self._update_actor(value)
+            self._update_actor(value, eligibility)
 
             # save data
             a_a_numpy = a_a.data.numpy()
@@ -126,7 +137,7 @@ class ActorCritic():
                       b_en_actor_power, k, eligibility)
 
             index += 1
-            if index > 300:
+            if index > 1000:
                 if index % 10 == 0 and k < 1:
                     k += 0.01
                     print(k)
@@ -143,11 +154,11 @@ class ActorCritic():
         self._optimizer_actor.step()
         self._optimizer_actor.zero_grad()
 
-    def _update_actor(self, value):
-        loss = self._criterion(value, torch.zeros(len(value)))
+    def _update_actor(self, a_a, eligibility):
+        loss = torch.log(a_a)
         loss.backward()
         for f in self._actor_nn.parameters():
-            f.data.sub(- f.grad.data * self._actor_step_size)
+            f.data.sub(-eligibility * f.grad.data * self._actor_step_size)
         self._optimizer_actor.zero_grad()
 
     def _transform_to_bid(self, action, en_cleared_price):
@@ -175,11 +186,11 @@ class ActorCritic():
             b_en_mpc.power_signed()
         ])
         a_a = self._actor_nn(state)
-        a_e = (1 - k) * 10 * torch.randn(1, 3)
+        a_e = torch.randn(1, 3)
         return a_s, a_a, a_e, (1 - k) * a_s + k * (a_a + a_e)
 
     def _compute_reward(self, b_fcas, b_en, en_cleared_price,
-                        b_fcas_cleared, r_shield):
+                        fcas_clearing_price, b_fcas_cleared, r_shield):
         # assume the markets are pay-as-b
         # assume the en market always clears your b
         b_en_cleared_power = b_en.power_signed()
@@ -188,38 +199,40 @@ class ActorCritic():
         b_fcas_price = b_fcas.price()
         b_fcas_power = b_fcas.power_signed()
         b_fcas_cleared_power = b_fcas_cleared.power()
-        b_fcas_cleared_price = b_fcas_cleared.price()
 
         # bare bones r function
-        r = ( - b_en_cleared_power) * b_en_cleared_price + 0.9 * b_fcas_cleared_power * b_fcas_cleared_price
+        r = (- b_en_cleared_power) * b_en_cleared_price
+
+        if fcas_clearing_price >= b_fcas_price:
+            r += 0.9 * b_fcas_cleared_power * b_fcas_price
 
         soe = self._battery.get_soe()
         total_capacity = self._battery._total_capacity
         max_power = self._battery._max_power
         max_ramp = self._battery._max_ramp
 
-        new_en = soe + self._battery._efficiency * b_en_cleared_power +\
-                self._battery._ratio_fcast * b_fcas_cleared_power
+        new_en = soe + self._battery._efficiency * (b_en_cleared_power -\
+                 self._battery._ratio_fcast * b_fcas_cleared_power)
 
         # weight the constraints by how 'much' the constraint
         # is violated multiplied by some scalar. this can be changed.
         # only punish if bounds on capacity, power, or ramp are violated.
-        penalty = 1000
+        penalty = 100
 
-        if new_en > total_capacity:
-            r -= penalty * (new_en - total_capacity)
+        if new_en - total_capacity > 0:
+            r -= penalty * abs(new_en - total_capacity)
         if new_en < 0:
-            r -= penalty * (-new_en)
-        if -b_fcas_power > max_ramp:
-            r -= penalty * b_fcas_power
+            r -= penalty * abs(-new_en)
+        if abs(b_fcas_power) > max_ramp:
+            r -= penalty * abs(b_fcas_power)
 
         # penalize "low" fcas bs
-        if b_fcas_power > 0:
-            r -= penalty * b_fcas_power
-        if -b_fcas_power > max_ramp:
+        if b_fcas_power > 10**(-2):
+            r -= penalty * abs(b_fcas_power)
+        if abs(b_fcas_power) > max_ramp:
             r -= penalty * abs(-b_fcas_power - max_ramp)
-        if -b_en_cleared_power > max_power:
-            r -= penalty * abs(-b_en_cleared_power - max_power)
+        if abs(b_en_cleared_power) > max_power:
+            r -= penalty * abs(abs(b_en_cleared_power) - max_power)
 
         if b_fcas_price < 0:
             r -= penalty * abs(b_fcas_price)
