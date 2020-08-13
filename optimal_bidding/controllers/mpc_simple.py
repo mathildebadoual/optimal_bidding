@@ -1,12 +1,12 @@
+from optimal_bidding.utils.data_postprocess import DataProcessor
+from optimal_bidding.environments.agents import Battery
+from optimal_bidding.environments.energy_market import FCASMarket
 import sys
 import os
 import pandas as pd
 sys.path.append(
     os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
-from optimal_bidding.environments.energy_market import FCASMarket
-from optimal_bidding.environments.agents import Battery
-from optimal_bidding.utils.data_postprocess import DataProcessor
 
 
 def main():
@@ -33,7 +33,8 @@ def main():
         battery_bid_fcas, battery_bid_energy = battery.bid_mpc(timestamp)
 
         # run the market dispatch
-        bid_fcas_cleared, fcas_clearing_price, end = fcas_market.step(battery_bid_fcas)
+        bid_fcas_cleared, fcas_clearing_price, end = fcas_market.step(
+            battery_bid_fcas)
 
         # get state
         fcas_cleared_power = bid_fcas_cleared.power_signed()

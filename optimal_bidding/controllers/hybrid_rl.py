@@ -1,17 +1,16 @@
+from optimal_bidding.utils.data_postprocess import DataProcessor
+from optimal_bidding.utils.nets import ActorNet, CriticNet
+from optimal_bidding.environments.agents import Battery, Bid
+from optimal_bidding.environments.energy_market import FCASMarket
 import sys
 import os
 import pandas as pd
-import numpy as np
 import torch
 import torch.optim as optim
 
 sys.path.append(
     os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
-from optimal_bidding.environments.energy_market import FCASMarket
-from optimal_bidding.environments.agents import Battery, Bid
-from optimal_bidding.utils.nets import ActorNet, CriticNet
-from optimal_bidding.utils.data_postprocess import DataProcessor
 
 
 class ActorCritic():
@@ -61,10 +60,10 @@ class ActorCritic():
             prev_fcas_clearing_price = fcas_clearing_price
             raise_demand = self.data_utils.get_raise_demand(timestamp)
             state = torch.tensor([
-                    step_of_day, soe, prev_en_cleared_price,
-                    en_cleared_price, prev_fcas_clearing_price,
-                    raise_demand
-                ])
+                step_of_day, soe, prev_en_cleared_price,
+                en_cleared_price, prev_fcas_clearing_price,
+                raise_demand
+            ])
 
             # compute the action = [p_raise, c_raise, p_en]
             a_s, a_a, a_e, action_composite = self._compute_action(
@@ -95,8 +94,9 @@ class ActorCritic():
             next_timestamp = timestamp + pd.Timedelta('30 min')
             next_step_of_day = self._get_step_of_day(next_timestamp)
             next_en_cleared_price = self.data_utils.get_energy_price(
-                    next_timestamp)
-            next_raise_demand = self.data_utils.get_raise_demand(next_timestamp)
+                next_timestamp)
+            next_raise_demand = self.data_utils.get_raise_demand(
+                next_timestamp)
             next_state = torch.tensor([
                 next_step_of_day, next_soe, en_cleared_price,
                 next_en_cleared_price, fcas_clearing_price,
@@ -191,7 +191,8 @@ class ActorCritic():
         b_fcas_cleared_price = b_fcas_cleared.price()
 
         # bare bones r function
-        r = ( - b_en_cleared_power) * b_en_cleared_price + 0.9 * b_fcas_cleared_power * b_fcas_cleared_price
+        r = (- b_en_cleared_power) * b_en_cleared_price + \
+            0.9 * b_fcas_cleared_power * b_fcas_cleared_price
 
         soe = self._battery.get_soe()
         total_capacity = self._battery._total_capacity
@@ -199,7 +200,7 @@ class ActorCritic():
         max_ramp = self._battery._max_ramp
 
         new_en = soe + self._battery._efficiency * b_en_cleared_power +\
-                self._battery._ratio_fcast * b_fcas_cleared_power
+            self._battery._ratio_fcast * b_fcas_cleared_power
 
         # weight the constraints by how 'much' the constraint
         # is violated multiplied by some scalar. this can be changed.
@@ -228,7 +229,7 @@ class ActorCritic():
 
     def _get_step_of_day(self, timestamp, timestep_min=30):
         return timestamp.hour * 60 / timestep_min + \
-                timestamp.minute / timestep_min
+            timestamp.minute / timestep_min
 
 
 def save_data(b_fcas, b_en, b_fcas_cleared,
@@ -287,7 +288,6 @@ def save_data(b_fcas, b_en, b_fcas_cleared,
 
 
 def main():
-
     # erase output csv
     f = open('hybrid_rl_results.csv', "w+")
     f.close()

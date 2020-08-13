@@ -4,3 +4,6 @@ pandas
 cvxpy
 pytest
 matplotlib
+pipenv
+nemosis
+cvxopt
