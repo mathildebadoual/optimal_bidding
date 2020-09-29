@@ -31,14 +31,14 @@ def main():
     start_time = pd.Timestamp(
         year=2018,
         month=6,
-        day=1,
-        hour=4,
-        minute=30
+        day=2,
+        hour=0,
+        minute=0
         )
     end_time = pd.Timestamp(
         year=2018,
         month=10,
-        day=31,
+        day=1,
         hour=0,
         minute=0
         )
@@ -61,7 +61,7 @@ def main():
         battery_bid = battery.bid_mpc(timestamp)
 
         # run the market dispatch
-        bid_cleared, clearing_price, end = energy_market.step(
+        bid_cleared, clearing_price, end, demand = energy_market.step(
             battery_bid)
 
         # get state
@@ -76,6 +76,7 @@ def main():
                   soe,
                   index,
                   timestamp,
+                  demand,
                   )
         index += 1
 
@@ -85,7 +86,8 @@ def save_data(bid_cleared,
               clearing_price,
               soe,
               index,
-              timestamp
+              timestamp,
+              demand
               ):
     d = {}
     d['battery_bid_price'] = battery_bid.price()
@@ -104,6 +106,7 @@ def save_data(bid_cleared,
         d['battery_bid_cleared_power_gen'] = 0
         d['battery_bid_cleared_power_load'] = bid_cleared.power_signed()
 
+    d['demand'] = demand
     d['clearing_price'] = clearing_price
     d['soe'] = soe
     d['timestamp'] = timestamp

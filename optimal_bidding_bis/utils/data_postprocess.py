@@ -4,14 +4,82 @@ import numpy as np
 
 from datetime import timedelta, datetime
 from collections import OrderedDict
+from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import normalize
 
-directory_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-CSV_PATH = os.path.join(directory_path, 'static/consolidated_data/')
+
+DIRECTORY_PATH = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+CSV_PATH = os.path.join(DIRECTORY_PATH, 'static/consolidated_data/')
+HISTORICAL_PRICES_CSV = os.path.join(
+    DIRECTORY_PATH,
+    'static/clearing_price_without_battery.csv')
 
 
 def round_to_nearest(x, base):
     # helper function to bin values
     return base * np.round(x / base)
+
+
+def read_historical_prices(start_timestamp, horizon=48):
+    """
+    Read prices stored from simulation of MPC without any bids
+    """
+    hist_prices_df = pd.read_csv(HISTORICAL_PRICES_CSV)
+    hist_prices_df["timestamp"] = pd.to_datetime(hist_prices_df["timestamp"])
+    hist_prices_df = hist_prices_df.set_index("timestamp")
+    horizon -= 1
+    minutes = horizon * 30
+    time_48_steps = pd.Timedelta(str(minutes) + ' min')
+    end_timestamp = start_timestamp + time_48_steps
+    return hist_prices_df.loc[start_timestamp:end_timestamp][
+        'clearing_price'].values
+
+
+def get_stats_historical_prices(timestamp, horizon):
+    """
+    We assume here that the price is a random variable following a normal
+    distribution. We compute the mean and covariance of the price distribution.
+    """
+    hist_prices_df = pd.read_csv(HISTORICAL_PRICES_CSV)
+    hist_prices_df["timestamp"] = pd.to_datetime(hist_prices_df["timestamp"])
+    hist_prices_df = hist_prices_df.set_index("timestamp")
+    start = pd.Timestamp(year=2018,
+                         month=6,
+                         day=2,
+                         hour=timestamp.hour,
+                         minute=timestamp.minute)
+    end = pd.Timestamp(year=2018,
+                       month=10,
+                       day=25,
+                       hour=timestamp.hour,
+                       minute=timestamp.minute)
+
+    hist_prices_df = hist_prices_df[
+        (hist_prices_df.index >= start) &
+        (hist_prices_df.index < end)
+        ]
+
+    hist_prices_df['hour'] = hist_prices_df.index.hour
+    hist_prices_df['minute'] = hist_prices_df.index.minute
+    num_features = horizon
+    num_samples = min(hist_prices_df.groupby(
+        [hist_prices_df.index.hour, hist_prices_df.index.minute]
+        ).count()['clearing_price'].values)
+    new = hist_prices_df.groupby(
+        [hist_prices_df.index.hour, hist_prices_df.index.minute]
+        ).mean()
+    new = new.set_index(pd.Index(range(48)))
+    i = new[
+        (new.hour == timestamp.hour) & (new.minute == timestamp.minute)
+        ]['clearing_price'].index.values[0]
+    a = new[new.index >= i]['clearing_price']
+    b = new[new.index < i]['clearing_price']
+    mean_X = np.concatenate((a, b))
+    X = np.copy(hist_prices_df['clearing_price'].values)
+    X = np.reshape(X, (num_samples, num_features))
+    cov = GaussianMixture(covariance_type='tied').fit(
+        normalize(X)).covariances_
+    return mean_X, cov
 
 
 class DataProcessor():
@@ -164,7 +232,12 @@ class DataProcessor():
             '5min_Lower_Demand'].values
 
 
-def get_transition_probabilities(df, column="Price", bin_size=10, timestep=30):
+def get_transition_probabilities(
+        df,
+        column="Price",
+        bin_size=10,
+        timestep=30
+        ):
     """
     First discretizes the data by rounding the values to the nearest bin_size.
     Then, calculates transition probabilites from consecutive rounded values

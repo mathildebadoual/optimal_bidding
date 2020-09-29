@@ -4,7 +4,7 @@ import numpy as np
 import cvxpy as cvx
 import pandas as pd
 
-from environments.agents import AgentDeterministic, Bid
+from environments.agents import Bid
 from utils.data_postprocess import DataProcessor
 
 
@@ -34,40 +34,45 @@ class EnergyMarket():
         agents_dict = []
 
         agents_dict.append(Bid(200, 5))
-        agents_dict.append(Bid(60, 9))
-        agents_dict.append(Bid(10, 11))
+        agents_dict.append(Bid(100, 9))
+        agents_dict.append(Bid(100, 11))
         agents_dict.append(Bid(70, 15))
-        agents_dict.append(Bid(53, 19))
+        agents_dict.append(Bid(153, 19))
         agents_dict.append(Bid(53, 20))
-        agents_dict.append(Bid(60, 22))
+        agents_dict.append(Bid(160, 22))
+        agents_dict.append(Bid(53, 23))
+        agents_dict.append(Bid(100, 25))
+        agents_dict.append(Bid(33, 30))
         agents_dict.append(Bid(53, 31))
-        agents_dict.append(Bid(30, 35))
-        agents_dict.append(Bid(13, 41))
-        agents_dict.append(Bid(53, 40))
-        agents_dict.append(Bid(65, 56))
-        agents_dict.append(Bid(25, 65))
-        agents_dict.append(Bid(58, 67))
-        agents_dict.append(Bid(50, 71))
-        agents_dict.append(Bid(40, 75))
-        agents_dict.append(Bid(70, 86))
-        agents_dict.append(Bid(100, 88))
-        agents_dict.append(Bid(40, 90))
-        agents_dict.append(Bid(120, 95))
-        agents_dict.append(Bid(120, 96))
-        agents_dict.append(Bid(20, 98))
-        agents_dict.append(Bid(50, 105))
-        agents_dict.append(Bid(80, 125))
-        agents_dict.append(Bid(100, 158))
-        agents_dict.append(Bid(100, 205))
-        agents_dict.append(Bid(500, 250))
+        agents_dict.append(Bid(65, 34))
+        agents_dict.append(Bid(25, 40))
+        agents_dict.append(Bid(58, 42))
+        agents_dict.append(Bid(50, 48))
+        agents_dict.append(Bid(40, 51))
+        agents_dict.append(Bid(70, 56))
+        agents_dict.append(Bid(70, 58))
+        agents_dict.append(Bid(100, 61))
+        agents_dict.append(Bid(60, 65))
+        agents_dict.append(Bid(120, 72))
+        agents_dict.append(Bid(120, 74))
+        agents_dict.append(Bid(50, 78))
+        agents_dict.append(Bid(50, 81))
+        agents_dict.append(Bid(70, 84))
+        agents_dict.append(Bid(100, 86))
+        agents_dict.append(Bid(80, 87))
+        agents_dict.append(Bid(100, 89))
+        agents_dict.append(Bid(100, 93))
+        agents_dict.append(Bid(100, 95))
+        agents_dict.append(Bid(100, 96))
+        agents_dict.append(Bid(100, 97))
         return agents_dict
 
     def step(self, battery_bid):
-        """Collects everyone bids and compute the dispatch
+        """Collects everyone's bids and compute the dispatch
         """
-        battery_bid = Bid(0, 0)
+        # battery_bid = Bid(0, 0)
 
-        battery_bid_cleared, clearing_price = self.compute_dispatch(
+        battery_bid_cleared, clearing_price, demand = self.compute_dispatch(
             battery_bid)
         self._timestamp += pd.Timedelta('30 min')
 
@@ -76,7 +81,7 @@ class EnergyMarket():
         else:
             end = False
 
-        return battery_bid_cleared, clearing_price, end
+        return battery_bid_cleared, clearing_price, end, demand
 
     def compute_dispatch(self, battery_bid):
         """Here is the optimization problem solving the
@@ -97,7 +102,8 @@ class EnergyMarket():
         # print(battery_bid)
 
         # get data from AEMO file
-        demand = self.data_utils.get_energy_demand(self._timestamp) * 0.6
+        demand = self.data_utils.get_energy_demand(self._timestamp)
+        print('demand: %s' % demand)
 
         # call bids from agents
         power_max_np = np.zeros(self._num_agents)
@@ -113,8 +119,6 @@ class EnergyMarket():
         else:
             power_max_np[-1] = 0
             cost_np[-1] = 0
-            print('battery bid power when load: %s' % battery_bid.power())
-            print('demand: %s' % demand)
             demand += battery_bid.power()
 
         power_max.value = power_max_np
@@ -153,4 +157,4 @@ class EnergyMarket():
                                   battery_bid.price(),
                                   bid_type=battery_bid.type())
 
-        return battery_bid_cleared, clearing_price
+        return battery_bid_cleared, clearing_price, demand

@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import cvxpy as cvx
 from utils.data_postprocess import DataProcessor
+from utils.data_postprocess import read_historical_prices
+from utils.data_postprocess import get_stats_historical_prices
 
 
 last_day_of_data = pd.Timestamp(
@@ -69,27 +71,91 @@ class Battery(Agent):
         Return:
           bid: Bid object
         """
-        energy_price = data_utils.get_energy_price_day_ahead(
+        energy_price = read_historical_prices(
             timestamp,
             horizon=self._horizon)
+        # mean, cov = get_stats_historical_prices(
+        #     timestamp,
+        #     self._horizon
+        # )
 
         # print(energy_price, low_price, raise_price, raise_demand)
-        n, m, p_gen, p_load = self._solve_optimal_bidding_mpc(
+        # m, p_gen, p_load = self._solve_optimal_bidding_mpc_robust(
+        #     mean, cov,
+        # )
+        m, p_gen, p_load = self._solve_optimal_bidding_mpc_simple(
             energy_price,
         )
 
+        alpha = 0
+
+        # price_bid = mean[0]
+        price_bid = energy_price[0]
+
         # create bid for energy market
         if abs(round(m[0])) == 0:
-            bid_energy = Bid(p_gen[0], energy_price[0], bid_type='gen')
+            bid_energy = Bid(p_gen[0], price_bid - alpha,
+                             bid_type='gen')
         else:
-            bid_energy = Bid(p_load[0], energy_price[0], bid_type='load')
+            bid_energy = Bid(p_load[0], price_bid - alpha,
+                             bid_type='load')
 
         return bid_energy
 
     def get_energy_power(self):
         return self._energy_power
 
-    def _solve_optimal_bidding_mpc(self, energy_price):
+    def _solve_optimal_bidding_mpc_robust(self, mean, cov):
+        """Solve the optimization problem with CVXPY
+
+        Args:
+          energy_prices: numpy.Array of size self._horizon
+
+        Return:
+          p_gen: numpy.Array of size self._horizon
+          p_load: numpy.Array of size self._horizon
+          s_raise: numpy.Array of size self._horizon
+          s_low: numpy.Array of size self._horizon
+        """
+        p_gen = cvx.Variable(self._horizon)
+        p_load = cvx.Variable(self._horizon)
+        p_tot = cvx.Variable(self._horizon)
+        soe = cvx.Variable(self._horizon)
+        m = cvx.Variable(self._horizon, boolean=True)
+
+        # constraints
+        constraints = []
+
+        for t in range(self._horizon - 1):
+            constraints += [
+                soe[t + 1] == soe[t] + self._efficiency *
+                (- p_gen[t] + p_load[t])
+            ]
+
+        constraints += [
+            soe[0] == self._soe,
+            soe <= self._total_capacity,
+            0 <= soe,
+            0 <= p_load,
+            p_load <= m * self._max_power,
+            0 <= p_gen,
+            p_gen <= (1 - m) * self._max_power,
+            p_tot == p_load - p_gen,
+        ]
+
+        print(mean)
+        # objective
+        d = 1
+        objective = cvx.Minimize(
+            mean @ p_tot + d * cvx.quad_form(p_tot.T, cov))
+
+        # solve problem
+        problem = cvx.Problem(objective, constraints)
+        problem.solve(solver='MOSEK', verbose=False)
+
+        return m.value, p_gen.value, p_load.value
+
+    def _solve_optimal_bidding_mpc_simple(self, energy_price):
         """Solve the optimization problem with CVXPY
 
         Args:
@@ -133,7 +199,7 @@ class Battery(Agent):
         problem = cvx.Problem(objective, constraints)
         problem.solve(verbose=False)
 
-        return [0.0], m.value, p_gen.value, p_load.value
+        return m.value, p_gen.value, p_load.value
 
 
 class AgentDeterministic(Agent):
@@ -173,8 +239,9 @@ class AgentNaturalGas(AgentDeterministic):
 
     def bid(self, timestamp=0):
         energy_price = data_utils.get_energy_price(timestamp)
-        energy_prices = data_utils.get_energy_price_day_ahead(timestamp,
-                                                              horizon=self._horizon)
+        energy_prices = data_utils.get_energy_price_day_ahead(
+            timestamp,
+            horizon=self._horizon)
         max_energy_price = max(energy_prices)
         inverted_multiplier = 1 - energy_price / max_energy_price
         return Bid(self._random_power,
